@@ -20,7 +20,6 @@
   ],
   "host_permissions": ["<all_urls>"],
   "action": {
-    "default_popup": "src/popup/index.html",
     "default_icon": {
       "16": "assets/icon-16.png",
       "32": "assets/icon-32.png",

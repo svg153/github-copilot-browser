@@ -144,6 +144,9 @@ nativeMessaging.onStatus((status: ConnectionStatus) => {
   });
 });
 
+// Open side panel when the toolbar icon is clicked
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+
 // Handle one-shot messages (e.g., from popup)
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.type === 'open-side-panel') {
