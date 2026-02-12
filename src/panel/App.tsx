@@ -56,13 +56,53 @@ export default function App() {
           setConnectionStatus(message.payload.status);
           setConnectionError(message.payload.error || null);
           break;
-        case 'CHAT_RESPONSE_COMPLETE':
-          setMessages((prev) => [...prev, message.payload.message]);
+
+        case 'CHAT_RESPONSE_CHUNK': {
+          // Accumulate streaming deltas into a message
+          const chunk = message.payload.chunk;
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
+              // Append to existing streaming message
+              return prev.map((m, i) =>
+                i === prev.length - 1 ? { ...m, content: m.content + chunk } : m
+              );
+            }
+            // Create new streaming message
+            return [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                role: 'assistant' as const,
+                content: chunk,
+                timestamp: Date.now(),
+                isStreaming: true,
+              } as ChatMessage,
+            ];
+          });
+          break;
+        }
+
+        case 'CHAT_RESPONSE_COMPLETE': {
+          // Finalize: mark streaming done (content already accumulated from chunks)
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
+              // Replace the streaming message with the final content
+              const finalContent = message.payload.message.content || last.content;
+              return prev.map((m, i) =>
+                i === prev.length - 1
+                  ? { ...m, content: finalContent, isStreaming: undefined }
+                  : m
+              );
+            }
+            // No streaming message found, add directly
+            return [...prev, message.payload.message];
+          });
           setIsLoading(false);
           break;
-        case 'CHAT_RESPONSE_CHUNK':
-          // TODO: Handle streaming - append to last assistant message
-          break;
+        }
+
         case 'CHAT_RESPONSE_ERROR':
           setMessages((prev) => [
             ...prev,
@@ -75,12 +115,43 @@ export default function App() {
           ]);
           setIsLoading(false);
           break;
-        case 'TOOL_CALL_START':
-          // TODO: Show tool call in progress
+
+        case 'TOOL_CALL_START': {
+          // Add tool call as a message with tool call data
+          const { toolCall } = message.payload;
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `tool-${toolCall.id}`,
+              role: 'assistant' as const,
+              content: '',
+              timestamp: Date.now(),
+              toolCalls: [toolCall],
+            },
+          ]);
           break;
-        case 'TOOL_CALL_RESULT':
-          // TODO: Show tool result
+        }
+
+        case 'TOOL_CALL_RESULT': {
+          // Update the tool call message with result
+          const { toolCallId, result } = message.payload;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.toolCalls?.some((tc) => tc.id === toolCallId)) {
+                return {
+                  ...m,
+                  toolCalls: m.toolCalls!.map((tc) =>
+                    tc.id === toolCallId
+                      ? { ...tc, status: result.success ? 'completed' as const : 'failed' as const, result }
+                      : tc
+                  ),
+                };
+              }
+              return m;
+            })
+          );
           break;
+        }
       }
     });
 

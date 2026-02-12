@@ -32,34 +32,61 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-      {messages.map((msg) => (
-        <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-          <div
-            className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-              msg.role === 'user' ? 'rounded-br-none' : 'rounded-bl-none'
-            }`}
-            style={{
-              backgroundColor: msg.role === 'user' ? '#1f6feb' : 'var(--copilot-surface)',
-              border: msg.role === 'assistant' ? '1px solid var(--copilot-border)' : 'none',
-            }}
-          >
-            {msg.role === 'assistant' ? (
-              <div className="markdown-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-              </div>
-            ) : (
-              <p className="whitespace-pre-wrap">{msg.content}</p>
-            )}
-            {msg.toolCalls && msg.toolCalls.length > 0 && (
-              <div className="mt-2 space-y-1">
-                {msg.toolCalls.map((tc) => (
+      {messages.map((msg) => {
+        const hasContent = msg.content.trim().length > 0;
+        const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
+        const isStreaming = (msg as ChatMessage & { isStreaming?: boolean }).isStreaming;
+
+        // Tool-only messages: render just the tool cards without a bubble
+        if (!hasContent && hasToolCalls) {
+          return (
+            <div key={msg.id} className="flex justify-start">
+              <div className="max-w-[85%] space-y-1">
+                {msg.toolCalls!.map((tc) => (
                   <ToolCallCard key={tc.id} toolCall={tc} />
                 ))}
               </div>
-            )}
+            </div>
+          );
+        }
+
+        // Skip completely empty assistant messages
+        if (!hasContent && !hasToolCalls && msg.role === 'assistant' && !isStreaming) {
+          return null;
+        }
+
+        return (
+          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                msg.role === 'user' ? 'rounded-br-none' : 'rounded-bl-none'
+              }`}
+              style={{
+                backgroundColor: msg.role === 'user' ? '#1f6feb' : 'var(--copilot-surface)',
+                border: msg.role === 'assistant' ? '1px solid var(--copilot-border)' : 'none',
+              }}
+            >
+              {msg.role === 'assistant' ? (
+                <div className="markdown-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  {isStreaming && (
+                    <span className="inline-block w-1.5 h-4 ml-0.5 animate-pulse rounded-sm" style={{ backgroundColor: 'var(--copilot-blue)' }} />
+                  )}
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
+              {hasToolCalls && (
+                <div className="mt-2 space-y-1">
+                  {msg.toolCalls!.map((tc) => (
+                    <ToolCallCard key={tc.id} toolCall={tc} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {isLoading && (
         <div className="flex justify-start">
           <div className="rounded-lg rounded-bl-none px-3 py-2" style={{ backgroundColor: 'var(--copilot-surface)', border: '1px solid var(--copilot-border)' }}>
