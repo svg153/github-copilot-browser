@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub Copilot Browser",
+  "version": "0.1.0",
+  "description": "Your AI copilot for the web",
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "storage",
+    "nativeMessaging",
+    "clipboardRead",
+    "clipboardWrite"
+  ],
+  "optional_permissions": [
+    "downloads",
+    "bookmarks",
+    "history"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png",
+      "48": "assets/icon-48.png",
+      "128": "assets/icon-128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "src/panel/index.html"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "content_scripts": [],
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Open Copilot side panel"
+    }
+  }
+}

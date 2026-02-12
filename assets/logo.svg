@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" ry="96" fill="#24292f"/>
+  <!-- Copilot-inspired dual sparkle icon -->
+  <g transform="translate(256,256)">
+    <!-- Left sparkle -->
+    <path d="M-40,-120 C-40,-40 -120,-40 -120,-40 C-120,-40 -40,-40 -40,40 C-40,40 -40,-40 40,-40 C40,-40 -40,-40 -40,-120Z" fill="#79c0ff" opacity="0.85">
+      <animateTransform attributeName="transform" type="scale" values="1;1;1" dur="1s"/>
+    </path>
+    <!-- Right sparkle (larger, main) -->
+    <path d="M40,-140 C40,-20 -80,-20 -80,-20 C-80,-20 40,-20 40,100 C40,100 40,-20 160,-20 C160,-20 40,-20 40,-140Z" fill="#79c0ff">
+    </path>
+    <!-- Small accent sparkle -->
+    <path d="M90,60 C90,90 60,90 60,90 C60,90 90,90 90,120 C90,120 90,90 120,90 C120,90 90,90 90,60Z" fill="#79c0ff" opacity="0.6"/>
+  </g>
+</svg>

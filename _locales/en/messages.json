@@ -1,0 +1,10 @@
+{
+  "appName": {
+    "message": "GitHub Copilot Browser",
+    "description": "The name of the extension"
+  },
+  "appDescription": {
+    "message": "Your AI copilot for the web",
+    "description": "The description of the extension"
+  }
+}
