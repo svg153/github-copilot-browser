@@ -62,7 +62,7 @@ export async function captureScreenshot(): Promise<string> {
 export async function injectContentScript(tabId: number): Promise<void> {
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ['src/content/content-script.js'],
+    files: ['content-script.js'],
   });
 }
 

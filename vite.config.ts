@@ -10,6 +10,15 @@ export default defineConfig({
       input: {
         panel: "src/panel/index.html",
         popup: "src/popup/index.html",
+        "content-script": "src/content/content-script.ts",
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name === "content-script") {
+            return "content-script.js";
+          }
+          return "assets/[name]-[hash].js";
+        },
       },
     },
   },
