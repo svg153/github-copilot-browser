@@ -128,6 +128,7 @@ async function initialize() {
     client = new CopilotClient({
       cliPath: '/opt/homebrew/bin/copilot',
       logLevel: 'error',
+      env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || '/usr/bin:/bin'}` },
     });
 
     session = await client.createSession({
