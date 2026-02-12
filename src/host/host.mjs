@@ -126,6 +126,7 @@ const browserTools = [
 async function initialize() {
   try {
     client = new CopilotClient({
+      cliPath: '/opt/homebrew/bin/copilot',
       logLevel: 'error',
     });
 
@@ -214,6 +215,25 @@ async function handleMessage(message) {
 }
 
 // ── Main ────────────────────────────────────────────────────────────
+
+// Prevent crashes from destroying the host when Chrome disconnects
+process.on('uncaughtException', (error) => {
+  // Silently handle stream destroyed errors during shutdown
+  if (error.code === 'ERR_STREAM_DESTROYED') {
+    process.exit(0);
+  }
+  try {
+    sendMessage({ type: 'HOST_STATUS', payload: { connected: false, error: error.message } });
+  } catch {}
+  process.exit(1);
+});
+
+// When Chrome closes the native messaging port, stdin ends
+process.stdin.on('end', async () => {
+  if (session) await session.destroy().catch(() => {});
+  if (client) await client.stop().catch(() => {});
+  process.exit(0);
+});
 
 sendMessage({ type: 'HOST_STATUS', payload: { connected: false, status: 'initializing' } });
 await initialize();
