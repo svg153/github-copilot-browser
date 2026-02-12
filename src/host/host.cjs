@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/opt/homebrew/bin/node
 'use strict';
 
 const { CopilotBridge } = require('./copilot-bridge.cjs');
