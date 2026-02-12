@@ -11,6 +11,7 @@ import type { BackgroundMessage } from '../shared/messages';
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
@@ -53,6 +54,7 @@ export default function App() {
       switch (message.type) {
         case 'CONNECTION_STATUS_CHANGED':
           setConnectionStatus(message.payload.status);
+          setConnectionError(message.payload.error || null);
           break;
         case 'CHAT_RESPONSE_COMPLETE':
           setMessages((prev) => [...prev, message.payload.message]);
@@ -106,10 +108,11 @@ export default function App() {
       } else {
         // Fallback when not connected
         setTimeout(() => {
+          const errorDetail = connectionError ? `\n\n**Error:** \`${connectionError}\`` : '';
           const assistantMessage: ChatMessage = {
             id: crypto.randomUUID(),
             role: 'assistant',
-            content: `I received your message: "${content}"\n\nThe Copilot native host is not connected. To set up:\n1. Run \`scripts/register-host.sh <extension-id>\`\n2. Restart your browser\n3. Click the status indicator to connect`,
+            content: `I received your message: "${content}"\n\nThe Copilot native host is not connected.${errorDetail}\n\nTo set up:\n1. Run \`scripts/register-host.sh <extension-id>\`\n2. Restart your browser\n3. Click the status indicator to connect`,
             timestamp: Date.now(),
           };
           setMessages((prev) => [...prev, assistantMessage]);
@@ -158,6 +161,7 @@ export default function App() {
     <div className="relative flex flex-col h-screen">
       <HeaderBar
         connectionStatus={connectionStatus}
+        connectionError={connectionError}
         onConnect={handleConnect}
         onNewSession={handleNewSession}
         onShowHistory={() => setShowHistory(true)}

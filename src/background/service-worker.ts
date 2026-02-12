@@ -47,7 +47,7 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
     case 'GET_CONNECTION_STATUS':
       sendToPanel(port, {
         type: 'CONNECTION_STATUS_CHANGED',
-        payload: { status: nativeMessaging.status },
+        payload: { status: nativeMessaging.status, error: nativeMessaging.lastError },
       });
       break;
 
@@ -140,7 +140,7 @@ nativeMessaging.onMessage((message) => {
 nativeMessaging.onStatus((status: ConnectionStatus) => {
   sendToPanels({
     type: 'CONNECTION_STATUS_CHANGED',
-    payload: { status },
+    payload: { status, error: nativeMessaging.lastError },
   });
 });
 

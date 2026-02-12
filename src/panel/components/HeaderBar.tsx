@@ -3,6 +3,7 @@ import type { ConnectionStatus } from '../../shared/types';
 
 interface HeaderBarProps {
   connectionStatus: ConnectionStatus;
+  connectionError?: string | null;
   onConnect: () => void;
   onNewSession: () => void;
   onShowHistory: () => void;
@@ -22,7 +23,10 @@ const statusLabels: Record<ConnectionStatus, string> = {
   error: 'Error',
 };
 
-export default function HeaderBar({ connectionStatus, onConnect, onNewSession, onShowHistory }: HeaderBarProps) {
+export default function HeaderBar({ connectionStatus, connectionError, onConnect, onNewSession, onShowHistory }: HeaderBarProps) {
+  const tooltip = connectionError
+    ? `${statusLabels[connectionStatus]}: ${connectionError}`
+    : statusLabels[connectionStatus];
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--copilot-border)' }}>
       <div className="flex items-center gap-2">
@@ -36,7 +40,7 @@ export default function HeaderBar({ connectionStatus, onConnect, onNewSession, o
           onClick={onConnect}
           className="flex items-center gap-1.5 text-xs px-2 py-1 rounded hover:opacity-80"
           style={{ color: statusColors[connectionStatus] }}
-          title={statusLabels[connectionStatus]}
+          title={tooltip}
         >
           <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: statusColors[connectionStatus] }} />
           {statusLabels[connectionStatus]}

@@ -17,7 +17,7 @@ export type BackgroundMessage =
   | { type: 'CHAT_RESPONSE_ERROR'; payload: { error: string; sessionId: string } }
   | { type: 'TOOL_CALL_START'; payload: { toolCall: ToolCall; sessionId: string } }
   | { type: 'TOOL_CALL_RESULT'; payload: { toolCallId: string; result: ToolResult; sessionId: string } }
-  | { type: 'CONNECTION_STATUS_CHANGED'; payload: { status: ConnectionStatus } }
+  | { type: 'CONNECTION_STATUS_CHANGED'; payload: { status: ConnectionStatus; error?: string | null } }
   | { type: 'OPEN_TABS'; payload: { tabs: TabInfo[] } };
 
 // Direction: Background -> Content Script

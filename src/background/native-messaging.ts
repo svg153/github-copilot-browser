@@ -11,9 +11,14 @@ class NativeMessagingClient {
   private messageListeners: MessageListener[] = [];
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _status: ConnectionStatus = 'disconnected';
+  private _lastError: string | null = null;
 
   get status(): ConnectionStatus {
     return this._status;
+  }
+
+  get lastError(): string | null {
+    return this._lastError;
   }
 
   connect(): void {
@@ -35,8 +40,8 @@ class NativeMessagingClient {
         const error = chrome.runtime.lastError?.message;
         console.warn('[NativeMessaging] Disconnected:', error);
         this.port = null;
-        this.setStatus('disconnected');
-        this.scheduleReconnect();
+        this._lastError = error || null;
+        this.setStatus('error');
       });
     } catch (error) {
       console.error('[NativeMessaging] Connection failed:', error);
