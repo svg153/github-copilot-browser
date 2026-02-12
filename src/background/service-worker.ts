@@ -1,5 +1,5 @@
 import { nativeMessaging } from './native-messaging';
-import { executeTool, tools } from './tools-registry';
+import { executeTool } from './tools-registry';
 import * as tabManager from './tab-manager';
 import type { PanelMessage, BackgroundMessage } from '../shared/messages';
 import type { ConnectionStatus } from '../shared/types';
@@ -28,7 +28,7 @@ chrome.runtime.onConnect.addListener((port) => {
     // Send current connection status
     sendToPanel(port, {
       type: 'CONNECTION_STATUS_CHANGED',
-      payload: { status: nativeMessaging.status },
+      payload: { status: nativeMessaging.status, error: nativeMessaging.lastError },
     });
   }
 });
@@ -60,23 +60,9 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
     case 'SEND_CHAT_MESSAGE': {
       const { content, sessionId } = message.payload;
       try {
-        // Forward to Copilot CLI via native messaging
         nativeMessaging.send({
-          type: 'COPILOT_REQUEST',
-          payload: {
-            method: 'chat/completions',
-            params: {
-              messages: [{ role: 'user', content }],
-              tools: tools.map((t) => ({
-                type: 'function',
-                function: {
-                  name: t.name,
-                  description: t.description,
-                  parameters: t.parameters,
-                },
-              })),
-            },
-          },
+          type: 'SEND_CHAT_MESSAGE',
+          payload: { content },
         });
       } catch (error) {
         sendToPanel(port, {
@@ -90,49 +76,82 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
       break;
     }
 
-    case 'EXECUTE_TOOL': {
-      const { toolCall } = message.payload;
-      const sessionId = 'current'; // TODO: track sessions properly
-      sendToPanels({
-        type: 'TOOL_CALL_START',
-        payload: { toolCall, sessionId },
-      });
-
-      const result = await executeTool(toolCall.name, toolCall.parameters);
-      sendToPanels({
-        type: 'TOOL_CALL_RESULT',
-        payload: { toolCallId: toolCall.id, result, sessionId },
-      });
+    case 'EXECUTE_TOOL':
       break;
-    }
   }
 }
 
-// Forward native messaging responses to panels
-nativeMessaging.onMessage((message) => {
-  if (message.type === 'COPILOT_RESPONSE') {
-    sendToPanels({
-      type: 'CHAT_RESPONSE_COMPLETE',
-      payload: {
-        message: {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: typeof message.payload.result === 'string'
-            ? message.payload.result
-            : JSON.stringify(message.payload.result),
-          timestamp: Date.now(),
+// Forward native messaging responses from host to panels
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+nativeMessaging.onMessage((message: any) => {
+  const sessionId = 'current';
+
+  switch (message.type) {
+    // Full assistant response
+    case 'CHAT_RESPONSE':
+      sendToPanels({
+        type: 'CHAT_RESPONSE_COMPLETE',
+        payload: {
+          message: {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: message.payload.content,
+            timestamp: Date.now(),
+          },
+          sessionId,
         },
-        sessionId: 'current',
-      },
-    });
-  } else if (message.type === 'COPILOT_STREAM') {
-    sendToPanels({
-      type: 'CHAT_RESPONSE_CHUNK',
-      payload: {
-        chunk: message.payload.chunk,
-        sessionId: 'current',
-      },
-    });
+      });
+      break;
+
+    // Streaming chunk
+    case 'CHAT_RESPONSE_CHUNK':
+      sendToPanels({
+        type: 'CHAT_RESPONSE_CHUNK',
+        payload: { chunk: message.payload.content, sessionId },
+      });
+      break;
+
+    // Chat error
+    case 'CHAT_RESPONSE_ERROR':
+      sendToPanels({
+        type: 'CHAT_RESPONSE_ERROR',
+        payload: { error: message.payload.error, sessionId },
+      });
+      break;
+
+    // Host requests a browser tool execution (LLM called a tool)
+    case 'TOOL_CALL_REQUEST': {
+      const { toolCallId, toolName, arguments: args } = message.payload;
+
+      sendToPanels({
+        type: 'TOOL_CALL_START',
+        payload: {
+          toolCall: { id: toolCallId, name: toolName, parameters: args || {}, status: 'running' },
+          sessionId,
+        },
+      });
+
+      // Execute the tool in the extension
+      executeTool(toolName, args || {}).then((result) => {
+        // Send result back to the native host so the SDK can feed it to the LLM
+        nativeMessaging.send({
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId, result },
+        });
+
+        sendToPanels({
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId, result, sessionId },
+        });
+      });
+      break;
+    }
+
+    // Tool execution lifecycle events from the host
+    case 'TOOL_EXECUTION_START':
+    case 'TOOL_EXECUTION_COMPLETE':
+      // Already handled via TOOL_CALL_REQUEST flow
+      break;
   }
 });
 

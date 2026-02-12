@@ -4,7 +4,7 @@ set -euo pipefail
 HOST_NAME="com.github.copilot.browser"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-HOST_PATH="$PROJECT_DIR/src/host/host.cjs"
+HOST_PATH="$PROJECT_DIR/src/host/host.mjs"
 MANIFEST_SOURCE="$PROJECT_DIR/src/host/$HOST_NAME.json"
 
 # Get extension ID from argument or prompt
@@ -54,7 +54,7 @@ EOF
   echo "✓ Registered for $browser_name at $target_dir/$HOST_NAME.json"
 }
 
-# Make host.cjs executable
+# Make host.mjs executable
 chmod +x "$HOST_PATH"
 
 # Install for Chrome

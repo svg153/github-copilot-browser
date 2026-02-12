@@ -1,7 +1,7 @@
 {
   "name": "com.github.copilot.browser",
   "description": "GitHub Copilot Browser Extension Native Messaging Host",
-  "path": "/PLACEHOLDER/src/host/host.cjs",
+  "path": "/PLACEHOLDER/src/host/host.mjs",
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://EXTENSION_ID_HERE/"

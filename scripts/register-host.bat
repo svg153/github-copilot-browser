@@ -4,7 +4,7 @@ setlocal
 set HOST_NAME=com.github.copilot.browser
 set SCRIPT_DIR=%~dp0
 set PROJECT_DIR=%SCRIPT_DIR%..
-set HOST_PATH=%PROJECT_DIR%\src\host\host.cjs
+set HOST_PATH=%PROJECT_DIR%\src\host\host.mjs
 
 set EXTENSION_ID=%1
 if "%EXTENSION_ID%"=="" (
