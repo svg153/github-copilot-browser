@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { CopilotBridge } = require('./copilot-bridge');
+const { CopilotBridge } = require('./copilot-bridge.cjs');
 
 // Chrome native messaging protocol: 4-byte length prefix (little-endian) + JSON
 function readMessage(callback) {
