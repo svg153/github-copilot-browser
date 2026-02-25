@@ -13,8 +13,23 @@ export async function getOpenTabs(): Promise<TabInfo[]> {
 }
 
 export async function getActiveTab(): Promise<chrome.tabs.Tab | null> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab || null;
+  // Use lastFocusedWindow — currentWindow:true returns the extension's own side panel
+  // window when the panel has focus, not the browser tab the user is viewing.
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (tab) {
+    // Skip chrome-extension://, chrome://, edge:// — content scripts can't run there
+    if (tab.url && !tab.url.startsWith('chrome-extension://') && !tab.url.startsWith('chrome://') && !tab.url.startsWith('edge://')) {
+      return tab;
+    }
+  }
+  // Fallback: search all windows for an active non-restricted tab
+  const allActive = await chrome.tabs.query({ active: true });
+  return allActive.find(t =>
+    t.url &&
+    !t.url.startsWith('chrome-extension://') &&
+    !t.url.startsWith('chrome://') &&
+    !t.url.startsWith('edge://')
+  ) || null;
 }
 
 export async function navigateTo(url: string, tabId?: number): Promise<void> {
