@@ -1,13 +1,16 @@
 import { nativeMessaging } from './native-messaging';
 import { executeTool } from './tools-registry';
 import * as tabManager from './tab-manager';
+import * as sessionStorage from '../panel/lib/session-storage';
 import type { PanelMessage, BackgroundMessage } from '../shared/messages';
 import type { ConnectionStatus } from '../shared/types';
 
-console.log('[Background] Service worker loaded');
-
 // Track panel connections
 const panelPorts: chrome.runtime.Port[] = [];
+
+// Track which panel initiated the current request (receives responses/tool calls)
+let activePort: chrome.runtime.Port | null = null;
+let activeSessionId: string = 'current';
 
 // Listen for connections from the side panel
 chrome.runtime.onConnect.addListener((port) => {
@@ -22,6 +25,7 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onDisconnect.addListener(() => {
       const index = panelPorts.indexOf(port);
       if (index > -1) panelPorts.splice(index, 1);
+      if (activePort === port) activePort = null;
       console.log('[Background] Panel disconnected');
     });
 
@@ -59,6 +63,9 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
 
     case 'SEND_CHAT_MESSAGE': {
       const { content, sessionId } = message.payload;
+      // Bind this panel as the active recipient for the response
+      activePort = port;
+      activeSessionId = sessionId;
       try {
         nativeMessaging.send({
           type: 'SEND_CHAT_MESSAGE',
@@ -76,72 +83,94 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
       break;
     }
 
+    case 'CANCEL_REQUEST':
+      try { nativeMessaging.send({ type: 'CANCEL_REQUEST' }); } catch { /* not connected */ }
+      break;
+
     case 'EXECUTE_TOOL':
+      break;
+
+    case 'GET_MODELS':
+      try { nativeMessaging.send({ type: 'GET_MODELS' }); } catch { /* not connected */ }
+      break;
+
+    case 'SET_MODEL':
+      try { nativeMessaging.send({ type: 'SET_MODEL', payload: { model: message.payload.model } }); } catch { /* not connected */ }
       break;
   }
 }
 
-// Forward native messaging responses from host to panels
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 nativeMessaging.onMessage((message: any) => {
-  const sessionId = 'current';
-
   switch (message.type) {
     // Full assistant response
     case 'CHAT_RESPONSE':
-      sendToPanels({
-        type: 'CHAT_RESPONSE_COMPLETE',
-        payload: {
-          message: {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: message.payload.content,
-            timestamp: Date.now(),
-          },
-          sessionId,
-        },
-      });
+      // Skip empty responses (occur when the LLM calls tools without a text message)
+      if (!message.payload.content) break;
+      {
+        const assistantMsg = {
+          id: crypto.randomUUID(),
+          role: 'assistant' as const,
+          content: message.payload.content,
+          timestamp: Date.now(),
+        };
+        sendToActivePanel({
+          type: 'CHAT_RESPONSE_COMPLETE',
+          payload: { message: assistantMsg, sessionId: activeSessionId },
+        });
+        // Persist assistant message to session storage
+        if (activeSessionId) {
+          sessionStorage.addMessage(activeSessionId, assistantMsg).catch(() => {});
+        }
+      }
       break;
 
     // Streaming chunk
     case 'CHAT_RESPONSE_CHUNK':
-      sendToPanels({
+      sendToActivePanel({
         type: 'CHAT_RESPONSE_CHUNK',
-        payload: { chunk: message.payload.content, sessionId },
+        payload: { chunk: message.payload.content, sessionId: activeSessionId },
       });
       break;
 
     // Chat error
     case 'CHAT_RESPONSE_ERROR':
-      sendToPanels({
+      sendToActivePanel({
         type: 'CHAT_RESPONSE_ERROR',
-        payload: { error: message.payload.error, sessionId },
+        payload: { error: message.payload.error, sessionId: activeSessionId },
       });
       break;
 
     // Host requests a browser tool execution (LLM called a tool)
     case 'TOOL_CALL_REQUEST': {
       const { toolCallId, toolName, arguments: args } = message.payload;
+      // Strip repo prefix (github_copilot_browser__) added to avoid conflicts with CLI built-in tools
+      const registryToolName = toolName.replace(/^github_copilot_browser__/, '');
 
-      sendToPanels({
+      sendToActivePanel({
         type: 'TOOL_CALL_START',
         payload: {
           toolCall: { id: toolCallId, name: toolName, parameters: args || {}, status: 'running' },
-          sessionId,
+          sessionId: activeSessionId,
         },
       });
 
       // Execute the tool in the extension
-      executeTool(toolName, args || {}).then((result) => {
+      executeTool(registryToolName, args || {}).then((result) => {
         // Send result back to the native host so the SDK can feed it to the LLM
         nativeMessaging.send({
           type: 'TOOL_CALL_RESULT',
           payload: { toolCallId, result },
         });
 
-        sendToPanels({
+        sendToActivePanel({
           type: 'TOOL_CALL_RESULT',
-          payload: { toolCallId, result, sessionId },
+          payload: { toolCallId, result, sessionId: activeSessionId },
+        });
+      }).catch((error) => {
+        console.error('[Background] Tool execution error:', registryToolName, error.message);
+        nativeMessaging.send({
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId, result: { success: false, error: error.message } },
         });
       });
       break;
@@ -151,6 +180,11 @@ nativeMessaging.onMessage((message: any) => {
     case 'TOOL_EXECUTION_START':
     case 'TOOL_EXECUTION_COMPLETE':
       // Already handled via TOOL_CALL_REQUEST flow
+      break;
+
+    // Broadcast to all panels (not session-specific)
+    case 'MODELS_LIST':
+      sendToPanels({ type: 'MODELS_LIST', payload: message.payload });
       break;
   }
 });
@@ -180,6 +214,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 // Helper functions
 function sendToPanel(port: chrome.runtime.Port, message: BackgroundMessage): void {
   port.postMessage(message);
+}
+
+function sendToActivePanel(message: BackgroundMessage): void {
+  if (activePort) sendToPanel(activePort, message);
 }
 
 function sendToPanels(message: BackgroundMessage): void {

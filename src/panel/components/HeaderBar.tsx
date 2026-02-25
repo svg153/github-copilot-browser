@@ -7,6 +7,9 @@ interface HeaderBarProps {
   onConnect: () => void;
   onNewSession: () => void;
   onShowHistory: () => void;
+  models?: Array<{ id: string; name: string }>;
+  currentModel?: string;
+  onModelChange?: (model: string) => void;
 }
 
 const statusColors: Record<ConnectionStatus, string> = {
@@ -23,7 +26,7 @@ const statusLabels: Record<ConnectionStatus, string> = {
   error: 'Error',
 };
 
-export default function HeaderBar({ connectionStatus, connectionError, onConnect, onNewSession, onShowHistory }: HeaderBarProps) {
+export default function HeaderBar({ connectionStatus, connectionError, onConnect, onNewSession, onShowHistory, models = [], currentModel, onModelChange }: HeaderBarProps) {
   const tooltip = connectionError
     ? `${statusLabels[connectionStatus]}: ${connectionError}`
     : statusLabels[connectionStatus];
@@ -36,6 +39,25 @@ export default function HeaderBar({ connectionStatus, connectionError, onConnect
         <span className="font-semibold text-sm">Copilot Browser</span>
       </div>
       <div className="flex items-center gap-3">
+        {models.length > 0 && onModelChange && (
+          <select
+            value={currentModel || ''}
+            onChange={(e) => onModelChange(e.target.value)}
+            className="text-xs px-1.5 py-1 rounded border"
+            style={{
+              color: 'var(--copilot-text-secondary)',
+              backgroundColor: 'var(--copilot-bg)',
+              borderColor: 'var(--copilot-border)',
+              maxWidth: '120px',
+            }}
+            title="Select model"
+          >
+            {!currentModel && <option value="">Default model</option>}
+            {models.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        )}
         <button
           onClick={onConnect}
           className="flex items-center gap-1.5 text-xs px-2 py-1 rounded hover:opacity-80"

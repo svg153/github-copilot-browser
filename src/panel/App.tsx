@@ -15,6 +15,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
+  const [models, setModels] = useState<Array<{ id: string; name: string }>>([]);
+  const [currentModel, setCurrentModel] = useState<string | undefined>();
   const initialized = useRef(false);
 
   // Initialize on mount
@@ -55,6 +57,10 @@ export default function App() {
         case 'CONNECTION_STATUS_CHANGED':
           setConnectionStatus(message.payload.status);
           setConnectionError(message.payload.error || null);
+          // Fetch models automatically when connected
+          if (message.payload.status === 'connected') {
+            copilotClient.getModels();
+          }
           break;
 
         case 'CHAT_RESPONSE_CHUNK': {
@@ -62,13 +68,11 @@ export default function App() {
           const chunk = message.payload.chunk;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
-              // Append to existing streaming message
+            if (last && last.role === 'assistant' && last.isStreaming) {
               return prev.map((m, i) =>
                 i === prev.length - 1 ? { ...m, content: m.content + chunk } : m
               );
             }
-            // Create new streaming message
             return [
               ...prev,
               {
@@ -77,18 +81,17 @@ export default function App() {
                 content: chunk,
                 timestamp: Date.now(),
                 isStreaming: true,
-              } as ChatMessage,
+              },
             ];
           });
           break;
         }
 
         case 'CHAT_RESPONSE_COMPLETE': {
-          // Finalize: mark streaming done (content already accumulated from chunks)
+          // Finalize streaming message with confirmed content
           setMessages((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
-              // Replace the streaming message with the final content
+            if (last && last.role === 'assistant' && last.isStreaming) {
               const finalContent = message.payload.message.content || last.content;
               return prev.map((m, i) =>
                 i === prev.length - 1
@@ -96,10 +99,13 @@ export default function App() {
                   : m
               );
             }
-            // No streaming message found, add directly
             return [...prev, message.payload.message];
           });
           setIsLoading(false);
+          // Persist assistant message to session storage (also done in service-worker, belt+suspenders)
+          if (sessionId) {
+            sessionStorage.addMessage(sessionId, message.payload.message).catch(() => {});
+          }
           break;
         }
 
@@ -132,8 +138,7 @@ export default function App() {
           break;
         }
 
-        case 'TOOL_CALL_RESULT': {
-          // Update the tool call message with result
+        case 'TOOL_CALL_RESULT': {          // Update the tool call message with result
           const { toolCallId, result } = message.payload;
           setMessages((prev) =>
             prev.map((m) => {
@@ -152,6 +157,11 @@ export default function App() {
           );
           break;
         }
+
+        case 'MODELS_LIST':
+          setModels(message.payload.models);
+          if (message.payload.current) setCurrentModel(message.payload.current);
+          break;
       }
     });
 
@@ -197,6 +207,21 @@ export default function App() {
     [connectionStatus, sessionId],
   );
 
+  const handleStop = useCallback(() => {
+    copilotClient.cancelRequest(sessionId);
+    // Mark any in-progress streaming message as finalized
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === 'assistant' && last.isStreaming) {
+        return prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, isStreaming: undefined } : m
+        );
+      }
+      return prev;
+    });
+    setIsLoading(false);
+  }, [sessionId]);
+
   const handleConnect = useCallback(() => {
     if (connectionStatus === 'disconnected' || connectionStatus === 'error') {
       copilotClient.connectToHost();
@@ -214,6 +239,11 @@ export default function App() {
     } catch {
       setSessionId(crypto.randomUUID());
     }
+  }, []);
+
+  const handleModelChange = useCallback((model: string) => {
+    setCurrentModel(model);
+    copilotClient.setModel(model);
   }, []);
 
   const handleSelectSession = useCallback(async (session: Session) => {
@@ -236,9 +266,12 @@ export default function App() {
         onConnect={handleConnect}
         onNewSession={handleNewSession}
         onShowHistory={() => setShowHistory(true)}
+        models={models}
+        currentModel={currentModel}
+        onModelChange={handleModelChange}
       />
       <MessageList messages={messages} isLoading={isLoading} />
-      <ChatInput onSend={handleSend} disabled={isLoading} />
+      <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} disabled={isLoading} />
       <SessionHistory
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}

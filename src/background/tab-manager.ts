@@ -13,8 +13,17 @@ export async function getOpenTabs(): Promise<TabInfo[]> {
 }
 
 export async function getActiveTab(): Promise<chrome.tabs.Tab | null> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab || null;
+  // Try lastFocusedWindow first — works correctly when side panel has focus
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (tab) {
+    // Skip chrome-extension:// and chrome:// — content scripts can't run there
+    if (tab.url && !tab.url.startsWith('chrome-extension://') && !tab.url.startsWith('chrome://') && !tab.url.startsWith('edge://')) {
+      return tab;
+    }
+  }
+  // Fallback: find a real active tab across all windows
+  const allActive = await chrome.tabs.query({ active: true });
+  return allActive.find(t => t.url && !t.url.startsWith('chrome-extension://') && !t.url.startsWith('chrome://') && !t.url.startsWith('edge://')) || null;
 }
 
 export async function navigateTo(url: string, tabId?: number): Promise<void> {

@@ -1,5 +1,5 @@
 import type { PanelMessage, BackgroundMessage } from '../../shared/messages';
-import type { ChatMessage, ConnectionStatus, ToolCall, ToolResult, TabInfo } from '../../shared/types';
+import type { ChatMessage, ConnectionStatus, ToolCall, TabInfo, ModelInfo } from '../../shared/types';
 
 type MessageHandler = (message: BackgroundMessage) => void;
 
@@ -61,6 +61,16 @@ class CopilotClient {
   // Get open tabs
   getOpenTabs(): void {
     this.send({ type: 'GET_OPEN_TABS' });
+  }
+
+  // Get available models
+  getModels(): void {
+    this.send({ type: 'GET_MODELS' });
+  }
+
+  // Set active model (re-creates host session)
+  setModel(model: string): void {
+    this.send({ type: 'SET_MODEL', payload: { model } });
   }
 
   // Execute a tool directly

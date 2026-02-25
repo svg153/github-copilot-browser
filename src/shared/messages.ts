@@ -1,6 +1,6 @@
-import type { ChatMessage, ToolCall, ToolResult, ConnectionStatus, TabInfo } from './types';
+import type { ChatMessage, ToolCall, ToolResult, ConnectionStatus, TabInfo, ModelInfo } from './types';
 
-// Direction: Panel -> Background
+// ── Panel → Background ───────────────────────────────────────────────
 export type PanelMessage =
   | { type: 'SEND_CHAT_MESSAGE'; payload: { content: string; sessionId: string } }
   | { type: 'CANCEL_REQUEST'; payload: { sessionId: string } }
@@ -8,9 +8,11 @@ export type PanelMessage =
   | { type: 'CONNECT_TO_HOST' }
   | { type: 'DISCONNECT_FROM_HOST' }
   | { type: 'GET_OPEN_TABS' }
+  | { type: 'GET_MODELS' }
+  | { type: 'SET_MODEL'; payload: { model: string } }
   | { type: 'EXECUTE_TOOL'; payload: { toolCall: ToolCall } };
 
-// Direction: Background -> Panel
+// ── Background → Panel ───────────────────────────────────────────────
 export type BackgroundMessage =
   | { type: 'CHAT_RESPONSE_CHUNK'; payload: { chunk: string; sessionId: string } }
   | { type: 'CHAT_RESPONSE_COMPLETE'; payload: { message: ChatMessage; sessionId: string } }
@@ -18,9 +20,10 @@ export type BackgroundMessage =
   | { type: 'TOOL_CALL_START'; payload: { toolCall: ToolCall; sessionId: string } }
   | { type: 'TOOL_CALL_RESULT'; payload: { toolCallId: string; result: ToolResult; sessionId: string } }
   | { type: 'CONNECTION_STATUS_CHANGED'; payload: { status: ConnectionStatus; error?: string | null } }
-  | { type: 'OPEN_TABS'; payload: { tabs: TabInfo[] } };
+  | { type: 'OPEN_TABS'; payload: { tabs: TabInfo[] } }
+  | { type: 'MODELS_LIST'; payload: { models: ModelInfo[]; current?: string } };
 
-// Direction: Background -> Content Script
+// ── Background → Content Script ──────────────────────────────────────
 export type ContentScriptMessage =
   | { type: 'GET_PAGE_CONTENT' }
   | { type: 'GET_PAGE_HTML'; payload?: { selector?: string } }
@@ -39,19 +42,31 @@ export type ContentScriptMessage =
   | { type: 'HOVER_ELEMENT'; payload: { selector: string } }
   | { type: 'HIGHLIGHT_ELEMENT'; payload: { selector: string; color?: string } }
   | { type: 'EXECUTE_JAVASCRIPT'; payload: { code: string } }
-  | { type: 'WAIT_FOR_ELEMENT'; payload: { selector: string; timeout?: number } }
-  | { type: 'HOVER_ELEMENT'; payload: { selector: string } };
+  | { type: 'WAIT_FOR_ELEMENT'; payload: { selector: string; timeout?: number } };
 
-// Content Script -> Background response
+// ── Content Script → Background ──────────────────────────────────────
 export interface ContentScriptResponse {
   success: boolean;
   data?: unknown;
   error?: string;
 }
 
-// Native messaging (Background <-> Host)
-export type NativeMessage =
-  | { type: 'COPILOT_REQUEST'; payload: { method: string; params: unknown } }
-  | { type: 'COPILOT_RESPONSE'; payload: { id: string; result?: unknown; error?: unknown } }
-  | { type: 'COPILOT_STREAM'; payload: { id: string; chunk: string } }
-  | { type: 'HOST_STATUS'; payload: { connected: boolean; error?: string } };
+// ── Native messaging protocol (Background ↔ Host process) ────────────
+// Messages sent FROM background service-worker TO host.mjs
+export type HostOutboundMessage =
+  | { type: 'SEND_CHAT_MESSAGE'; payload: { content: string } }
+  | { type: 'CANCEL_REQUEST' }
+  | { type: 'TOOL_CALL_RESULT'; payload: { toolCallId: string; result: ToolResult } }
+  | { type: 'GET_MODELS' }
+  | { type: 'SET_MODEL'; payload: { model: string } };
+
+// Messages sent FROM host.mjs TO background service-worker
+export type HostInboundMessage =
+  | { type: 'HOST_STATUS'; payload: { connected: boolean; status?: string; error?: string; warning?: string } }
+  | { type: 'CHAT_RESPONSE'; payload: { content: string; done: boolean } }
+  | { type: 'CHAT_RESPONSE_CHUNK'; payload: { content: string } }
+  | { type: 'CHAT_RESPONSE_ERROR'; payload: { error: string } }
+  | { type: 'TOOL_CALL_REQUEST'; payload: { toolCallId: string; toolName: string; arguments: Record<string, unknown> } }
+  | { type: 'TOOL_EXECUTION_START'; payload: { toolCallId: string; toolName: string } }
+  | { type: 'TOOL_EXECUTION_COMPLETE'; payload: { toolCallId: string; toolName: string } }
+  | { type: 'MODELS_LIST'; payload: { models: ModelInfo[]; current?: string } };

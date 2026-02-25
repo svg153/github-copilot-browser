@@ -8,6 +8,8 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   toolCalls?: ToolCall[];
+  /** True while assistant response is still streaming in */
+  isStreaming?: boolean;
 }
 
 // Tool call and result
@@ -51,6 +53,12 @@ export interface Session {
 
 // Connection status
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+// Model info
+export interface ModelInfo {
+  id: string;
+  name: string;
+}
 
 // Tab info
 export interface TabInfo {
