@@ -207,6 +207,11 @@ export default function App() {
     [connectionStatus, sessionId],
   );
 
+  const handleStop = useCallback(() => {
+    copilotClient.cancelRequest(sessionId);
+    setIsLoading(false);
+  }, [sessionId]);
+
   const handleConnect = useCallback(() => {
     if (connectionStatus === 'disconnected' || connectionStatus === 'error') {
       copilotClient.connectToHost();
@@ -256,7 +261,7 @@ export default function App() {
         onModelChange={handleModelChange}
       />
       <MessageList messages={messages} isLoading={isLoading} />
-      <ChatInput onSend={handleSend} disabled={isLoading} />
+      <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} disabled={false} />
       <SessionHistory
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}

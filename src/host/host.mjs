@@ -321,6 +321,14 @@ async function handleMessage(message) {
       break;
     }
 
+    case 'CANCEL_REQUEST': {
+      if (session) {
+        log.info('Aborting current session request');
+        session.abort().catch((e) => log.warn('abort() failed:', e.message));
+      }
+      break;
+    }
+
     case 'TOOL_CALL_RESULT': {
       const { toolCallId, result } = message.payload;
       const pending = pendingToolCalls.get(toolCallId);

@@ -9,6 +9,10 @@ console.log('[Background] Service worker loaded');
 // Track panel connections
 const panelPorts: chrome.runtime.Port[] = [];
 
+// Track which panel initiated the current request (receives responses/tool calls)
+let activePort: chrome.runtime.Port | null = null;
+let activeSessionId: string = 'current';
+
 // Listen for connections from the side panel
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'copilot-panel') {
@@ -22,6 +26,7 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onDisconnect.addListener(() => {
       const index = panelPorts.indexOf(port);
       if (index > -1) panelPorts.splice(index, 1);
+      if (activePort === port) activePort = null;
       console.log('[Background] Panel disconnected');
     });
 
@@ -59,6 +64,9 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
 
     case 'SEND_CHAT_MESSAGE': {
       const { content, sessionId } = message.payload;
+      // Bind this panel as the active recipient for the response
+      activePort = port;
+      activeSessionId = sessionId;
       try {
         nativeMessaging.send({
           type: 'SEND_CHAT_MESSAGE',
@@ -76,6 +84,10 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
       break;
     }
 
+    case 'CANCEL_REQUEST':
+      nativeMessaging.send({ type: 'CANCEL_REQUEST' });
+      break;
+
     case 'EXECUTE_TOOL':
       break;
 
@@ -89,17 +101,13 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
   }
 }
 
-// Forward native messaging responses from host to panels
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 nativeMessaging.onMessage((message: any) => {
-  const sessionId = 'current';
-
   switch (message.type) {
     // Full assistant response
     case 'CHAT_RESPONSE':
       // Skip empty responses (occur when the LLM calls tools without a text message)
       if (!message.payload.content) break;
-      sendToPanels({
+      sendToActivePanel({
         type: 'CHAT_RESPONSE_COMPLETE',
         payload: {
           message: {
@@ -108,24 +116,24 @@ nativeMessaging.onMessage((message: any) => {
             content: message.payload.content,
             timestamp: Date.now(),
           },
-          sessionId,
+          sessionId: activeSessionId,
         },
       });
       break;
 
     // Streaming chunk
     case 'CHAT_RESPONSE_CHUNK':
-      sendToPanels({
+      sendToActivePanel({
         type: 'CHAT_RESPONSE_CHUNK',
-        payload: { chunk: message.payload.content, sessionId },
+        payload: { chunk: message.payload.content, sessionId: activeSessionId },
       });
       break;
 
     // Chat error
     case 'CHAT_RESPONSE_ERROR':
-      sendToPanels({
+      sendToActivePanel({
         type: 'CHAT_RESPONSE_ERROR',
-        payload: { error: message.payload.error, sessionId },
+        payload: { error: message.payload.error, sessionId: activeSessionId },
       });
       break;
 
@@ -135,26 +143,25 @@ nativeMessaging.onMessage((message: any) => {
       // Strip repo prefix (github_copilot_browser__) added to avoid conflicts with CLI built-in tools
       const registryToolName = toolName.replace(/^github_copilot_browser__/, '');
 
-      sendToPanels({
+      sendToActivePanel({
         type: 'TOOL_CALL_START',
         payload: {
           toolCall: { id: toolCallId, name: toolName, parameters: args || {}, status: 'running' },
-          sessionId,
+          sessionId: activeSessionId,
         },
       });
 
       // Execute the tool in the extension
       executeTool(registryToolName, args || {}).then((result) => {
-        // DEBUG console.log('[Background] Tool result:', registryToolName, JSON.stringify(result).slice(0, 200));
         // Send result back to the native host so the SDK can feed it to the LLM
         nativeMessaging.send({
           type: 'TOOL_CALL_RESULT',
           payload: { toolCallId, result },
         });
 
-        sendToPanels({
+        sendToActivePanel({
           type: 'TOOL_CALL_RESULT',
-          payload: { toolCallId, result, sessionId },
+          payload: { toolCallId, result, sessionId: activeSessionId },
         });
       }).catch((error) => {
         console.error('[Background] Tool execution error:', registryToolName, error.message);
@@ -172,7 +179,7 @@ nativeMessaging.onMessage((message: any) => {
       // Already handled via TOOL_CALL_REQUEST flow
       break;
 
-    // Available models list from host
+    // Broadcast to all panels (not session-specific)
     case 'MODELS_LIST':
       sendToPanels({ type: 'MODELS_LIST', payload: message.payload });
       break;
@@ -204,6 +211,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 // Helper functions
 function sendToPanel(port: chrome.runtime.Port, message: BackgroundMessage): void {
   port.postMessage(message);
+}
+
+function sendToActivePanel(message: BackgroundMessage): void {
+  if (activePort) sendToPanel(activePort, message);
 }
 
 function sendToPanels(message: BackgroundMessage): void {
