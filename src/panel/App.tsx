@@ -68,13 +68,11 @@ export default function App() {
           const chunk = message.payload.chunk;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
-              // Append to existing streaming message
+            if (last && last.role === 'assistant' && last.isStreaming) {
               return prev.map((m, i) =>
                 i === prev.length - 1 ? { ...m, content: m.content + chunk } : m
               );
             }
-            // Create new streaming message
             return [
               ...prev,
               {
@@ -83,18 +81,17 @@ export default function App() {
                 content: chunk,
                 timestamp: Date.now(),
                 isStreaming: true,
-              } as ChatMessage,
+              },
             ];
           });
           break;
         }
 
         case 'CHAT_RESPONSE_COMPLETE': {
-          // Finalize: mark streaming done (content already accumulated from chunks)
+          // Finalize streaming message with confirmed content
           setMessages((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
-              // Replace the streaming message with the final content
+            if (last && last.role === 'assistant' && last.isStreaming) {
               const finalContent = message.payload.message.content || last.content;
               return prev.map((m, i) =>
                 i === prev.length - 1
@@ -102,10 +99,13 @@ export default function App() {
                   : m
               );
             }
-            // No streaming message found, add directly
             return [...prev, message.payload.message];
           });
           setIsLoading(false);
+          // Persist assistant message to session storage (also done in service-worker, belt+suspenders)
+          if (sessionId) {
+            sessionStorage.addMessage(sessionId, message.payload.message).catch(() => {});
+          }
           break;
         }
 
@@ -209,6 +209,16 @@ export default function App() {
 
   const handleStop = useCallback(() => {
     copilotClient.cancelRequest(sessionId);
+    // Mark any in-progress streaming message as finalized
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === 'assistant' && last.isStreaming) {
+        return prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, isStreaming: undefined } : m
+        );
+      }
+      return prev;
+    });
     setIsLoading(false);
   }, [sessionId]);
 
@@ -261,7 +271,7 @@ export default function App() {
         onModelChange={handleModelChange}
       />
       <MessageList messages={messages} isLoading={isLoading} />
-      <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} disabled={false} />
+      <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} disabled={isLoading} />
       <SessionHistory
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}

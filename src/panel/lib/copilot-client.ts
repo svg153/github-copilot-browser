@@ -1,5 +1,5 @@
 import type { PanelMessage, BackgroundMessage } from '../../shared/messages';
-import type { ChatMessage, ConnectionStatus, ToolCall, ToolResult, TabInfo } from '../../shared/types';
+import type { ChatMessage, ConnectionStatus, ToolCall, TabInfo, ModelInfo } from '../../shared/types';
 
 type MessageHandler = (message: BackgroundMessage) => void;
 

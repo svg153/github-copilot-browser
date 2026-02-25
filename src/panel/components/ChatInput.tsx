@@ -41,9 +41,9 @@ export default function ChatInput({ onSend, onStop, disabled, isLoading }: ChatI
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask Copilot..."
-          disabled={disabled}
+          disabled={isLoading}
           rows={1}
-          className="flex-1 resize-none bg-transparent outline-none text-sm placeholder:opacity-50"
+          className="flex-1 resize-none bg-transparent outline-none text-sm placeholder:opacity-50 disabled:opacity-60"
           style={{ color: 'var(--copilot-text)', maxHeight: '150px' }}
         />
         <button

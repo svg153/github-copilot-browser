@@ -1,10 +1,9 @@
 import { nativeMessaging } from './native-messaging';
 import { executeTool } from './tools-registry';
 import * as tabManager from './tab-manager';
+import * as sessionStorage from '../panel/lib/session-storage';
 import type { PanelMessage, BackgroundMessage } from '../shared/messages';
 import type { ConnectionStatus } from '../shared/types';
-
-console.log('[Background] Service worker loaded');
 
 // Track panel connections
 const panelPorts: chrome.runtime.Port[] = [];
@@ -85,18 +84,18 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
     }
 
     case 'CANCEL_REQUEST':
-      nativeMessaging.send({ type: 'CANCEL_REQUEST' });
+      try { nativeMessaging.send({ type: 'CANCEL_REQUEST' }); } catch { /* not connected */ }
       break;
 
     case 'EXECUTE_TOOL':
       break;
 
     case 'GET_MODELS':
-      nativeMessaging.send({ type: 'GET_MODELS' });
+      try { nativeMessaging.send({ type: 'GET_MODELS' }); } catch { /* not connected */ }
       break;
 
     case 'SET_MODEL':
-      nativeMessaging.send({ type: 'SET_MODEL', payload: { model: message.payload.model } });
+      try { nativeMessaging.send({ type: 'SET_MODEL', payload: { model: message.payload.model } }); } catch { /* not connected */ }
       break;
   }
 }
@@ -107,18 +106,22 @@ nativeMessaging.onMessage((message: any) => {
     case 'CHAT_RESPONSE':
       // Skip empty responses (occur when the LLM calls tools without a text message)
       if (!message.payload.content) break;
-      sendToActivePanel({
-        type: 'CHAT_RESPONSE_COMPLETE',
-        payload: {
-          message: {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: message.payload.content,
-            timestamp: Date.now(),
-          },
-          sessionId: activeSessionId,
-        },
-      });
+      {
+        const assistantMsg = {
+          id: crypto.randomUUID(),
+          role: 'assistant' as const,
+          content: message.payload.content,
+          timestamp: Date.now(),
+        };
+        sendToActivePanel({
+          type: 'CHAT_RESPONSE_COMPLETE',
+          payload: { message: assistantMsg, sessionId: activeSessionId },
+        });
+        // Persist assistant message to session storage
+        if (activeSessionId) {
+          sessionStorage.addMessage(activeSessionId, assistantMsg).catch(() => {});
+        }
+      }
       break;
 
     // Streaming chunk

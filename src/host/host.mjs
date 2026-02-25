@@ -108,6 +108,8 @@ function readMessages(callback) {
 let client = null;
 let session = null;
 let currentModel = undefined; // undefined = CLI default
+let isGenerating = false;    // true while session.send() is in progress
+let streamedContent = '';    // accumulates CHAT_RESPONSE_CHUNK content during a response
 
 // Pending tool call requests from the extension (browser tools)
 // When the LLM calls a browser tool, we forward it to the extension
@@ -233,12 +235,17 @@ async function createNewSession() {
     log.debug('Session event:', event.type, JSON.stringify(event.data || {}).slice(0, 300));
     switch (event.type) {
       case 'assistant.message':
+        if (!isGenerating) break; // post-abort, ignore
+        isGenerating = false;
+        streamedContent = '';
         sendMessage({
           type: 'CHAT_RESPONSE',
           payload: { content: event.data.content, done: true },
         });
         break;
       case 'assistant.message_delta':
+        if (!isGenerating) break; // post-abort, ignore
+        streamedContent += event.data.content || '';
         sendMessage({
           type: 'CHAT_RESPONSE_CHUNK',
           payload: { content: event.data.content },
@@ -313,18 +320,29 @@ async function handleMessage(message) {
         sendMessage({ type: 'CHAT_RESPONSE_ERROR', payload: { error: 'Session not initialized' } });
         return;
       }
+      isGenerating = true;
+      streamedContent = '';
       try {
         await session.send({ prompt: message.payload.content });
       } catch (error) {
+        isGenerating = false;
+        streamedContent = '';
         sendMessage({ type: 'CHAT_RESPONSE_ERROR', payload: { error: error.message } });
       }
       break;
     }
 
     case 'CANCEL_REQUEST': {
-      if (session) {
+      if (session && isGenerating) {
         log.info('Aborting current session request');
+        const partialContent = streamedContent;
+        isGenerating = false;
+        streamedContent = '';
         session.abort().catch((e) => log.warn('abort() failed:', e.message));
+        // Send whatever was streamed so far as a complete response
+        if (partialContent) {
+          sendMessage({ type: 'CHAT_RESPONSE', payload: { content: partialContent, done: true } });
+        }
       }
       break;
     }
@@ -368,6 +386,8 @@ async function handleMessage(message) {
       const { model } = message.payload;
       log.info('Changing model to:', model);
       currentModel = model;
+      isGenerating = false;
+      streamedContent = '';
       try {
         await createNewSession();
         sendMessage({ type: 'HOST_STATUS', payload: { connected: true } });
