@@ -76,6 +76,10 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
       break;
     }
 
+    case 'CANCEL_REQUEST':
+      nativeMessaging.send({ type: 'CANCEL_REQUEST', payload: message.payload });
+      break;
+
     case 'EXECUTE_TOOL':
       break;
   }

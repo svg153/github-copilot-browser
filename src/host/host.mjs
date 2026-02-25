@@ -210,6 +210,14 @@ async function handleMessage(message) {
       break;
     }
 
+    case 'CANCEL_REQUEST': {
+      if (session) {
+        await session.abort().catch(() => {});
+        sendMessage({ type: 'CHAT_RESPONSE', payload: { content: '' } });
+      }
+      break;
+    }
+
     default:
       sendMessage({ type: 'HOST_STATUS', payload: { connected: true, warning: `Unknown message type: ${message.type}` } });
   }
