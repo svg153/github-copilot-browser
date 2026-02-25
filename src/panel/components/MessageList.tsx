@@ -35,7 +35,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
       {messages.map((msg) => {
         const hasContent = msg.content.trim().length > 0;
         const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
-        const isStreaming = (msg as ChatMessage & { isStreaming?: boolean }).isStreaming;
+        const isStreaming = msg.isStreaming;
 
         // Tool-only messages: render just the tool cards without a bubble
         if (!hasContent && hasToolCalls) {
