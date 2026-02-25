@@ -8,6 +8,8 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   toolCalls?: ToolCall[];
+  /** True while assistant response is still streaming in */
+  isStreaming?: boolean;
 }
 
 // Tool call and result

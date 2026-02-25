@@ -62,7 +62,7 @@ export default function App() {
           const chunk = message.payload.chunk;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
+            if (last && last.role === 'assistant' && last.isStreaming) {
               // Append to existing streaming message
               return prev.map((m, i) =>
                 i === prev.length - 1 ? { ...m, content: m.content + chunk } : m
@@ -77,7 +77,7 @@ export default function App() {
                 content: chunk,
                 timestamp: Date.now(),
                 isStreaming: true,
-              } as ChatMessage,
+              },
             ];
           });
           break;
@@ -87,7 +87,7 @@ export default function App() {
           // Finalize: mark streaming done (content already accumulated from chunks)
           setMessages((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
+            if (last && last.role === 'assistant' && last.isStreaming) {
               // Replace the streaming message with the final content
               const finalContent = message.payload.message.content || last.content;
               return prev.map((m, i) =>
