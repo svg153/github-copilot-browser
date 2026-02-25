@@ -1,5 +1,8 @@
-#!/opt/homebrew/bin/node
+#!/usr/bin/env node
 import { CopilotClient } from '@github/copilot-sdk';
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
+import { join } from 'path';
 
 // ── Chrome Native Messaging Protocol ────────────────────────────────
 // 4-byte little-endian length prefix + JSON payload on stdin/stdout.
@@ -123,10 +126,35 @@ const browserTools = [
   }),
 ];
 
+/**
+ * Discover the GitHub Copilot CLI binary.
+ * Checks common install locations before falling back to `which`/`where`.
+ */
+function findCopilotCli() {
+  const candidates = [
+    '/opt/homebrew/bin/copilot',          // macOS Homebrew (Apple Silicon)
+    '/usr/local/bin/copilot',             // macOS Homebrew (Intel) / Linux
+    '/usr/bin/copilot',                   // Linux system install
+    join(process.env.HOME || '', '.local/bin/copilot'), // user-local Linux
+    join(process.env.LOCALAPPDATA || '', 'Programs', 'GitHub Copilot CLI', 'copilot.exe'), // Windows
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  // Fall back to PATH lookup
+  try {
+    const which = process.platform === 'win32' ? 'where copilot' : 'which copilot';
+    return execSync(which, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().split('\n')[0];
+  } catch {
+    throw new Error('GitHub Copilot CLI not found. Install it and make sure it is in PATH.');
+  }
+}
+
 async function initialize() {
   try {
+    const cliPath = findCopilotCli();
     client = new CopilotClient({
-      cliPath: '/opt/homebrew/bin/copilot',
+      cliPath,
       logLevel: 'error',
       env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || '/usr/bin:/bin'}` },
     });
