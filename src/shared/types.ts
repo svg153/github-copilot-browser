@@ -49,6 +49,12 @@ export interface Session {
   updatedAt: number;
 }
 
+// Model info
+export interface ModelInfo {
+  id: string;
+  name: string;
+}
+
 // Connection status
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 

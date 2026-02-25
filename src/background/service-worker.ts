@@ -76,6 +76,14 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
       break;
     }
 
+    case 'GET_MODELS':
+      nativeMessaging.send({ type: 'GET_MODELS' });
+      break;
+
+    case 'SET_MODEL':
+      nativeMessaging.send({ type: 'SET_MODEL', payload: message.payload });
+      break;
+
     case 'EXECUTE_TOOL':
       break;
   }
@@ -151,6 +159,14 @@ nativeMessaging.onMessage((message: any) => {
     case 'TOOL_EXECUTION_START':
     case 'TOOL_EXECUTION_COMPLETE':
       // Already handled via TOOL_CALL_REQUEST flow
+      break;
+
+    case 'MODELS_LIST':
+      // Broadcast model list to all panels
+      sendToPanels({
+        type: 'MODELS_LIST',
+        payload: message.payload,
+      });
       break;
   }
 });

@@ -210,6 +210,19 @@ async function handleMessage(message) {
       break;
     }
 
+    case 'GET_MODELS': {
+      const models = client ? await client.getModels().catch(() => []) : [];
+      sendMessage({ type: 'MODELS_LIST', payload: { models } });
+      break;
+    }
+
+    case 'SET_MODEL': {
+      if (client) {
+        await client.setModel(message.payload.model).catch(() => {});
+      }
+      break;
+    }
+
     default:
       sendMessage({ type: 'HOST_STATUS', payload: { connected: true, warning: `Unknown message type: ${message.type}` } });
   }
