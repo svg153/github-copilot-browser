@@ -1,5 +1,5 @@
 #!/opt/homebrew/bin/node
-import { CopilotClient } from '@github/copilot-sdk';
+import { CopilotClient, approveAll } from '@github/copilot-sdk';
 
 // ── Chrome Native Messaging Protocol ────────────────────────────────
 // 4-byte little-endian length prefix + JSON payload on stdin/stdout.
@@ -133,6 +133,7 @@ async function initialize() {
 
     session = await client.createSession({
       tools: browserTools,
+      onPermissionRequest: approveAll,
       systemMessage: {
         mode: 'append',
         content: [
