@@ -39,8 +39,7 @@ export type ContentScriptMessage =
   | { type: 'HOVER_ELEMENT'; payload: { selector: string } }
   | { type: 'HIGHLIGHT_ELEMENT'; payload: { selector: string; color?: string } }
   | { type: 'EXECUTE_JAVASCRIPT'; payload: { code: string } }
-  | { type: 'WAIT_FOR_ELEMENT'; payload: { selector: string; timeout?: number } }
-  | { type: 'HOVER_ELEMENT'; payload: { selector: string } };
+  | { type: 'WAIT_FOR_ELEMENT'; payload: { selector: string; timeout?: number } };
 
 // Content Script -> Background response
 export interface ContentScriptResponse {
@@ -49,9 +48,21 @@ export interface ContentScriptResponse {
   error?: string;
 }
 
-// Native messaging (Background <-> Host)
-export type NativeMessage =
-  | { type: 'COPILOT_REQUEST'; payload: { method: string; params: unknown } }
-  | { type: 'COPILOT_RESPONSE'; payload: { id: string; result?: unknown; error?: unknown } }
-  | { type: 'COPILOT_STREAM'; payload: { id: string; chunk: string } }
-  | { type: 'HOST_STATUS'; payload: { connected: boolean; error?: string } };
+// Native messaging (Background -> Host)
+export type HostOutboundMessage =
+  | { type: 'SEND_CHAT_MESSAGE'; payload: { content: string } }
+  | { type: 'TOOL_CALL_RESULT'; payload: { toolCallId: string; result: ToolResult } }
+  | { type: 'CANCEL_REQUEST'; payload: { sessionId: string } };
+
+// Native messaging (Host -> Background)
+export type HostInboundMessage =
+  | { type: 'HOST_STATUS'; payload: { connected: boolean; error?: string; status?: string; warning?: string } }
+  | { type: 'CHAT_RESPONSE'; payload: { content: string } }
+  | { type: 'CHAT_RESPONSE_CHUNK'; payload: { content: string } }
+  | { type: 'CHAT_RESPONSE_ERROR'; payload: { error: string } }
+  | { type: 'TOOL_CALL_REQUEST'; payload: { toolCallId: string; toolName: string; arguments: Record<string, unknown> } }
+  | { type: 'TOOL_EXECUTION_START'; payload: { toolName: string } }
+  | { type: 'TOOL_EXECUTION_COMPLETE'; payload: { toolName: string; result: unknown } };
+
+/** @deprecated Use HostOutboundMessage and HostInboundMessage instead */
+export type NativeMessage = HostOutboundMessage | HostInboundMessage;
