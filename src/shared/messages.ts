@@ -8,6 +8,8 @@ export type PanelMessage =
   | { type: 'CONNECT_TO_HOST' }
   | { type: 'DISCONNECT_FROM_HOST' }
   | { type: 'GET_OPEN_TABS' }
+  | { type: 'GET_MODELS' }
+  | { type: 'SET_MODEL'; payload: { model: string } }
   | { type: 'EXECUTE_TOOL'; payload: { toolCall: ToolCall } };
 
 // Direction: Background -> Panel
@@ -18,7 +20,8 @@ export type BackgroundMessage =
   | { type: 'TOOL_CALL_START'; payload: { toolCall: ToolCall; sessionId: string } }
   | { type: 'TOOL_CALL_RESULT'; payload: { toolCallId: string; result: ToolResult; sessionId: string } }
   | { type: 'CONNECTION_STATUS_CHANGED'; payload: { status: ConnectionStatus; error?: string | null } }
-  | { type: 'OPEN_TABS'; payload: { tabs: TabInfo[] } };
+  | { type: 'OPEN_TABS'; payload: { tabs: TabInfo[] } }
+  | { type: 'MODELS_LIST'; payload: { models: Array<{ id: string; name: string }>; current?: string } };
 
 // Direction: Background -> Content Script
 export type ContentScriptMessage =

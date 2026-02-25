@@ -63,6 +63,16 @@ class CopilotClient {
     this.send({ type: 'GET_OPEN_TABS' });
   }
 
+  // Get available models
+  getModels(): void {
+    this.send({ type: 'GET_MODELS' });
+  }
+
+  // Set active model (re-creates host session)
+  setModel(model: string): void {
+    this.send({ type: 'SET_MODEL', payload: { model } });
+  }
+
   // Execute a tool directly
   executeTool(toolCall: ToolCall): void {
     this.send({ type: 'EXECUTE_TOOL', payload: { toolCall } });

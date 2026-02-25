@@ -15,6 +15,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
+  const [models, setModels] = useState<Array<{ id: string; name: string }>>([]);
+  const [currentModel, setCurrentModel] = useState<string | undefined>();
   const initialized = useRef(false);
 
   // Initialize on mount
@@ -55,6 +57,10 @@ export default function App() {
         case 'CONNECTION_STATUS_CHANGED':
           setConnectionStatus(message.payload.status);
           setConnectionError(message.payload.error || null);
+          // Fetch models automatically when connected
+          if (message.payload.status === 'connected') {
+            copilotClient.getModels();
+          }
           break;
 
         case 'CHAT_RESPONSE_CHUNK': {
@@ -132,8 +138,7 @@ export default function App() {
           break;
         }
 
-        case 'TOOL_CALL_RESULT': {
-          // Update the tool call message with result
+        case 'TOOL_CALL_RESULT': {          // Update the tool call message with result
           const { toolCallId, result } = message.payload;
           setMessages((prev) =>
             prev.map((m) => {
@@ -152,6 +157,11 @@ export default function App() {
           );
           break;
         }
+
+        case 'MODELS_LIST':
+          setModels(message.payload.models);
+          if (message.payload.current) setCurrentModel(message.payload.current);
+          break;
       }
     });
 
@@ -216,6 +226,11 @@ export default function App() {
     }
   }, []);
 
+  const handleModelChange = useCallback((model: string) => {
+    setCurrentModel(model);
+    copilotClient.setModel(model);
+  }, []);
+
   const handleSelectSession = useCallback(async (session: Session) => {
     setSessionId(session.id);
     setMessages(session.messages);
@@ -236,6 +251,9 @@ export default function App() {
         onConnect={handleConnect}
         onNewSession={handleNewSession}
         onShowHistory={() => setShowHistory(true)}
+        models={models}
+        currentModel={currentModel}
+        onModelChange={handleModelChange}
       />
       <MessageList messages={messages} isLoading={isLoading} />
       <ChatInput onSend={handleSend} disabled={isLoading} />

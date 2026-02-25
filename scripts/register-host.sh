@@ -5,7 +5,6 @@ HOST_NAME="com.github.copilot.browser"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 HOST_PATH="$PROJECT_DIR/src/host/host.mjs"
-MANIFEST_SOURCE="$PROJECT_DIR/src/host/$HOST_NAME.json"
 
 # Get extension ID from argument or prompt
 EXTENSION_ID="${1:-}"

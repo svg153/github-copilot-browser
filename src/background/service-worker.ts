@@ -78,6 +78,14 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
 
     case 'EXECUTE_TOOL':
       break;
+
+    case 'GET_MODELS':
+      nativeMessaging.send({ type: 'GET_MODELS' });
+      break;
+
+    case 'SET_MODEL':
+      nativeMessaging.send({ type: 'SET_MODEL', payload: { model: message.payload.model } });
+      break;
   }
 }
 
@@ -89,6 +97,8 @@ nativeMessaging.onMessage((message: any) => {
   switch (message.type) {
     // Full assistant response
     case 'CHAT_RESPONSE':
+      // Skip empty responses (occur when the LLM calls tools without a text message)
+      if (!message.payload.content) break;
       sendToPanels({
         type: 'CHAT_RESPONSE_COMPLETE',
         payload: {
@@ -122,6 +132,8 @@ nativeMessaging.onMessage((message: any) => {
     // Host requests a browser tool execution (LLM called a tool)
     case 'TOOL_CALL_REQUEST': {
       const { toolCallId, toolName, arguments: args } = message.payload;
+      // Strip repo prefix (github_copilot_browser__) added to avoid conflicts with CLI built-in tools
+      const registryToolName = toolName.replace(/^github_copilot_browser__/, '');
 
       sendToPanels({
         type: 'TOOL_CALL_START',
@@ -132,7 +144,8 @@ nativeMessaging.onMessage((message: any) => {
       });
 
       // Execute the tool in the extension
-      executeTool(toolName, args || {}).then((result) => {
+      executeTool(registryToolName, args || {}).then((result) => {
+        // DEBUG console.log('[Background] Tool result:', registryToolName, JSON.stringify(result).slice(0, 200));
         // Send result back to the native host so the SDK can feed it to the LLM
         nativeMessaging.send({
           type: 'TOOL_CALL_RESULT',
@@ -143,6 +156,12 @@ nativeMessaging.onMessage((message: any) => {
           type: 'TOOL_CALL_RESULT',
           payload: { toolCallId, result, sessionId },
         });
+      }).catch((error) => {
+        console.error('[Background] Tool execution error:', registryToolName, error.message);
+        nativeMessaging.send({
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId, result: { success: false, error: error.message } },
+        });
       });
       break;
     }
@@ -151,6 +170,11 @@ nativeMessaging.onMessage((message: any) => {
     case 'TOOL_EXECUTION_START':
     case 'TOOL_EXECUTION_COMPLETE':
       // Already handled via TOOL_CALL_REQUEST flow
+      break;
+
+    // Available models list from host
+    case 'MODELS_LIST':
+      sendToPanels({ type: 'MODELS_LIST', payload: message.payload });
       break;
   }
 });
