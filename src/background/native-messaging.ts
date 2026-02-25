@@ -5,13 +5,18 @@ import type { ConnectionStatus } from '../shared/types';
 type StatusListener = (status: ConnectionStatus) => void;
 type MessageListener = (message: NativeMessage) => void;
 
+const RECONNECT_DELAYS = [5000, 10000, 20000, 30000]; // ms — exponential backoff, capped at 30 s
+
 class NativeMessagingClient {
   private port: chrome.runtime.Port | null = null;
   private statusListeners: StatusListener[] = [];
   private messageListeners: MessageListener[] = [];
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempt = 0;
   private _status: ConnectionStatus = 'disconnected';
   private _lastError: string | null = null;
+  /** Set to true when the user explicitly calls disconnect() — suppresses auto-reconnect. */
+  private _userDisconnected = false;
 
   get status(): ConnectionStatus {
     return this._status;
@@ -24,6 +29,7 @@ class NativeMessagingClient {
   connect(): void {
     if (this.port) return;
 
+    this._userDisconnected = false;
     this.setStatus('connecting');
 
     try {
@@ -31,6 +37,8 @@ class NativeMessagingClient {
 
       this.port.onMessage.addListener((message: NativeMessage) => {
         if (message.type === 'HOST_STATUS') {
+          // Reset backoff on successful connect signal from host
+          this.reconnectAttempt = 0;
           this.setStatus(message.payload.connected ? 'connected' : 'error');
         }
         this.messageListeners.forEach((listener) => listener(message));
@@ -38,19 +46,25 @@ class NativeMessagingClient {
 
       this.port.onDisconnect.addListener(() => {
         const error = chrome.runtime.lastError?.message;
-        console.warn('[NativeMessaging] Disconnected:', error);
         this.port = null;
         this._lastError = error || null;
         this.setStatus('error');
+        // Auto-reconnect unless the user explicitly disconnected
+        if (!this._userDisconnected) {
+          this.scheduleReconnect();
+        }
       });
     } catch (error) {
       console.error('[NativeMessaging] Connection failed:', error);
       this.setStatus('error');
-      this.scheduleReconnect();
+      if (!this._userDisconnected) {
+        this.scheduleReconnect();
+      }
     }
   }
 
   disconnect(): void {
+    this._userDisconnected = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -90,10 +104,12 @@ class NativeMessagingClient {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    const delay = RECONNECT_DELAYS[Math.min(this.reconnectAttempt, RECONNECT_DELAYS.length - 1)];
+    this.reconnectAttempt++;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, 5000);
+    }, delay);
   }
 }
 
