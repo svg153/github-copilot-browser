@@ -5,7 +5,7 @@ import ChatInput from './components/ChatInput';
 import SessionHistory from './components/SessionHistory';
 import { copilotClient } from './lib/copilot-client';
 import * as sessionStorage from './lib/session-storage';
-import type { ChatMessage, ConnectionStatus, Session } from '../shared/types';
+import type { ChatMessage, ConnectionStatus, Session, ModelInfo } from '../shared/types';
 import type { BackgroundMessage } from '../shared/messages';
 
 export default function App() {
@@ -15,6 +15,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [currentModel, setCurrentModel] = useState<string>('');
   const initialized = useRef(false);
 
   // Initialize on mount
@@ -55,6 +57,15 @@ export default function App() {
         case 'CONNECTION_STATUS_CHANGED':
           setConnectionStatus(message.payload.status);
           setConnectionError(message.payload.error || null);
+          // Request model list when connected
+          if (message.payload.status === 'connected') {
+            copilotClient.getModels();
+          }
+          break;
+
+        case 'MODELS_LIST':
+          setModels(message.payload.models);
+          if (message.payload.current) setCurrentModel(message.payload.current);
           break;
 
         case 'CHAT_RESPONSE_CHUNK': {
@@ -205,6 +216,11 @@ export default function App() {
     }
   }, [connectionStatus]);
 
+  const handleModelChange = useCallback((model: string) => {
+    setCurrentModel(model);
+    copilotClient.setModel(model);
+  }, []);
+
   const handleNewSession = useCallback(async () => {
     setMessages([]);
     setIsLoading(false);
@@ -236,6 +252,9 @@ export default function App() {
         onConnect={handleConnect}
         onNewSession={handleNewSession}
         onShowHistory={() => setShowHistory(true)}
+        models={models}
+        currentModel={currentModel}
+        onModelChange={handleModelChange}
       />
       <MessageList messages={messages} isLoading={isLoading} />
       <ChatInput onSend={handleSend} disabled={isLoading} />

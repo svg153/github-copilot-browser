@@ -58,6 +58,16 @@ class CopilotClient {
     this.send({ type: 'DISCONNECT_FROM_HOST' });
   }
 
+  // Get available models
+  getModels(): void {
+    this.send({ type: 'GET_MODELS' });
+  }
+
+  // Set active model
+  setModel(model: string): void {
+    this.send({ type: 'SET_MODEL', payload: { model } });
+  }
+
   // Get open tabs
   getOpenTabs(): void {
     this.send({ type: 'GET_OPEN_TABS' });
