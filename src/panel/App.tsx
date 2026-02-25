@@ -205,6 +205,21 @@ export default function App() {
     }
   }, [connectionStatus]);
 
+  const handleStop = useCallback(() => {
+    copilotClient.cancelRequest(sessionId);
+    // Finalize any in-progress streaming message
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === 'assistant' && (last as ChatMessage & { isStreaming?: boolean }).isStreaming) {
+        return prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, isStreaming: undefined } : m
+        );
+      }
+      return prev;
+    });
+    setIsLoading(false);
+  }, [sessionId]);
+
   const handleNewSession = useCallback(async () => {
     setMessages([]);
     setIsLoading(false);
@@ -238,7 +253,7 @@ export default function App() {
         onShowHistory={() => setShowHistory(true)}
       />
       <MessageList messages={messages} isLoading={isLoading} />
-      <ChatInput onSend={handleSend} disabled={isLoading} />
+      <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} disabled={isLoading} />
       <SessionHistory
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
