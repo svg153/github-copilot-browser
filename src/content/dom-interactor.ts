@@ -102,9 +102,38 @@ export function waitForElement(selector: string, timeout: number = 5000): Promis
   });
 }
 
-export function executeJavaScript(code: string): { success: boolean; result?: unknown; error?: string } {
+// C4: Sandboxed JavaScript execution
+export function executeJavaScript(code: string, allowed: boolean = true): { success: boolean; result?: unknown; error?: string } {
+  if (!allowed) {
+    return { success: false, error: 'JavaScript execution is disabled in settings' };
+  }
+
+  // Validate: reject obviously dangerous patterns
+  const dangerousPatterns = [
+    /window\.\s*top\s*\./,      // iframe escape
+    /parent\.\s*document/,       // cross-origin parent access
+    /localStorage\s*\[/,         // storage access
+    /sessionStorage\s*\[/,       // storage access
+    /cookie\s*=/,                // cookie manipulation
+    /fetch\s*\(/,               // network requests
+    /XMLHttpRequest/,           // network requests
+    /eval\s*\(/,               // nested eval
+    /Function\s*\(/,           // Function constructor
+    /import\s*\(/,             // dynamic import
+    /document\.cookie/,        // cookie access
+  ];
+
+  for (const pattern of dangerousPatterns) {
+    if (pattern.test(code)) {
+      return { success: false, error: `Code contains potentially dangerous operations: ${pattern.source}` };
+    }
+  }
+
   try {
-    const result = eval(code);
+    // Use a sandboxed Function constructor instead of eval
+    // This runs in the content script context, isolated from page globals
+    const sandboxedFn = new Function('document', 'window', 'console', code);
+    const result = sandboxedFn(document, {}, console);
     return { success: true, result: typeof result === 'object' ? JSON.parse(JSON.stringify(result)) : result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };

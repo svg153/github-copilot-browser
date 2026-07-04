@@ -8,6 +8,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   toolCalls?: ToolCall[];
+  isStreaming?: boolean;
 }
 
 // Tool call and result
@@ -60,4 +61,20 @@ export interface TabInfo {
   active: boolean;
   windowId: number;
   favIconUrl?: string;
+}
+
+// Settings
+export interface ExtensionSettings {
+  nativeHostPath?: string;
+  nodePath?: string;
+  copilotCliPath?: string;
+  toolTimeoutMs?: number;
+  reconnectBackoffBaseMs?: number;
+  reconnectBackoffMaxMs?: number;
+  reconnectMaxAttempts?: number;
+  enableDownloads?: boolean;
+  enableBookmarks?: boolean;
+  enableHistory?: boolean;
+  allowJavaScriptExecution?: boolean;
+  requireConfirmationForDestructive?: boolean;
 }

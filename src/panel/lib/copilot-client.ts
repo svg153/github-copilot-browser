@@ -68,6 +68,16 @@ class CopilotClient {
     this.send({ type: 'EXECUTE_TOOL', payload: { toolCall } });
   }
 
+  // Get settings
+  getSettings(): void {
+    this.send({ type: 'GET_SETTINGS' });
+  }
+
+  // Save settings
+  saveSettings(settings: Record<string, unknown>): void {
+    this.send({ type: 'SAVE_SETTINGS', payload: settings });
+  }
+
   // Event subscription
   on(type: BackgroundMessage['type'], handler: MessageHandler): () => void {
     if (!this.handlers.has(type)) {

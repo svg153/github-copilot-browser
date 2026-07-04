@@ -18,6 +18,18 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab | null> {
 }
 
 export async function navigateTo(url: string, tabId?: number): Promise<void> {
+  if (!url) throw new Error('URL is required');
+  
+  // Basic URL validation
+  try {
+    new URL(url);
+  } catch {
+    // If it looks like it has a scheme or is relative, try to make it absolute
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('about:')) {
+      throw new Error('Invalid URL format. URL must start with http://, https://, or about:');
+    }
+  }
+  
   if (tabId) {
     await chrome.tabs.update(tabId, { url });
   } else {
@@ -33,10 +45,12 @@ export async function openTab(url: string, active = true): Promise<chrome.tabs.T
 }
 
 export async function closeTab(tabId: number): Promise<void> {
+  if (!tabId) throw new Error('Tab ID is required');
   await chrome.tabs.remove(tabId);
 }
 
 export async function switchTab(tabId: number): Promise<void> {
+  if (!tabId) throw new Error('Tab ID is required');
   await chrome.tabs.update(tabId, { active: true });
 }
 
@@ -67,5 +81,10 @@ export async function injectContentScript(tabId: number): Promise<void> {
 }
 
 export async function sendToContentScript(tabId: number, message: unknown): Promise<unknown> {
+  // Validate tabId
+  if (!tabId || typeof tabId !== 'number') {
+    throw new Error('Invalid tab ID');
+  }
+  
   return chrome.tabs.sendMessage(tabId, message);
 }

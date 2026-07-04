@@ -1,3 +1,32 @@
-node_modules
-dist
-.vite
+# Build artifacts
+dist/
+.vite/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+log/
+
+# Native host logs
+/tmp/copilot-browser-host.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Production
+build/

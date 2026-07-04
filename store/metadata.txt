@@ -1,0 +1,43 @@
+# Chrome Web Store Submission Metadata
+# Save to store/metadata.txt and fill in when ready to publish
+
+# Required Fields
+title: GitHub Copilot Browser
+short_description: Your AI copilot for the web — automate tasks, extract data, fill forms with natural language
+full_description: [See README.md]
+
+# Developer Info
+developer_name: Sergio Valverde
+email: svg153@gmail.com
+website: https://github.com/svg153/github-copilot-browser
+privacy_policy: https://github.com/svg153/github-copilot-browser/blob/main/PRIVACY.md
+
+# Categories (Chrome Web Store numeric codes)
+primary_category: productivity
+secondary_categories: developer_tools
+
+# Keywords (comma-separated, max 100 chars)
+keywords: copilot, ai, assistant, automation, browser, web, scraping, forms, chat
+
+# Pricing
+price: Free
+currency: USD
+
+# Screenshots (need to generate)
+# Recommended: 1280x800 or 640x400, at least 2 screenshots
+# screenshot_urls:
+#   - dist/screenshot-chat.png
+#   - dist/screenshot-settings.png
+
+# Icon (required)
+# 128x128 PNG: assets/icon-128.png
+# 96x96 PNG: assets/icon-96.png
+# 48x48 PNG: assets/icon-48.png
+# 32x32 PNG: assets/icon-32.png
+# 16x16 PNG: assets/icon-16.png
+# Store icon 1024x1024 PNG (required for upload)
+
+# Edge Add-Ons Store
+# Similar requirements, submit at: https://microsoftedge.microsoft.com/addons
+# Categories: Productivity, Developer Tools
+# Required: same icon set, screenshots, description

@@ -14,12 +14,21 @@ export function getPageContent(): PageContent {
   };
 }
 
+// M5: Intelligent HTML truncation - filter out scripts and styles
 export function getPageHtml(selector?: string): string {
+  let html: string;
+  
   if (selector) {
     const el = document.querySelector(selector);
-    return el?.outerHTML || `No element found for selector: ${selector}`;
+    html = el?.outerHTML || `No element found for selector: ${selector}`;
+  } else {
+    // Clone document element and remove scripts/styles before serializing
+    const clone = document.documentElement.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('script, style, link[rel="stylesheet"], noscript').forEach(el => el.remove());
+    html = clone.outerHTML.slice(0, 100000);
   }
-  return document.documentElement.outerHTML.slice(0, 100000); // Cap at 100k
+  
+  return html;
 }
 
 interface HeadingInfo {

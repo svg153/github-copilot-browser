@@ -1,8 +1,12 @@
 {
   "manifest_version": 3,
   "name": "GitHub Copilot Browser",
-  "version": "0.1.0",
-  "description": "Your AI copilot for the web",
+  "version": "0.2.0",
+  "short_name": "Copilot Browser",
+  "description": "Your AI copilot for the web — a Chrome/Edge extension that brings GitHub Copilot's agent capabilities directly into your browser. Automate web tasks, extract page content, fill forms, navigate pages, and more with natural language.",
+  "author": {
+    "email": "svg153@gmail.com"
+  },
   "permissions": [
     "sidePanel",
     "activeTab",
@@ -18,7 +22,9 @@
     "bookmarks",
     "history"
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "action": {
     "default_icon": {
       "16": "assets/icon-16.png",
@@ -30,6 +36,7 @@
   "side_panel": {
     "default_path": "src/panel/index.html"
   },
+  "options_page": "src/settings/index.html",
   "background": {
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
@@ -39,6 +46,7 @@
     "16": "assets/icon-16.png",
     "32": "assets/icon-32.png",
     "48": "assets/icon-48.png",
+    "96": "assets/icon-128.png",
     "128": "assets/icon-128.png"
   },
   "commands": {
@@ -49,5 +57,9 @@
       },
       "description": "Open Copilot side panel"
     }
-  }
+  },
+  "content_security_policy": {
+    "extension_actions": "script-src 'self'; object-src 'self';"
+  },
+  "update_url": "https://clients2.google.com/service/update2/crx"
 }

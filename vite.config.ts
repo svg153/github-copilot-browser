@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         panel: "src/panel/index.html",
         popup: "src/popup/index.html",
+        settings: "src/settings/index.html",
         "content-script": "src/content/content-script.ts",
       },
       output: {

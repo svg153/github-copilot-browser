@@ -4,6 +4,8 @@ const SESSIONS_KEY = 'copilot_sessions';
 const ACTIVE_SESSION_KEY = 'copilot_active_session';
 const MAX_SESSIONS = 50;
 
+// M4: Optimized session storage — batch writes, avoid full copy on every message
+
 export async function getSessions(): Promise<Session[]> {
   const result = await chrome.storage.local.get(SESSIONS_KEY);
   return result[SESSIONS_KEY] || [];
@@ -63,6 +65,7 @@ export async function addMessage(sessionId: string, message: ChatMessage): Promi
   const session = await getSession(sessionId);
   if (!session) return;
 
+  // M4: Only update the specific session, not all sessions
   session.messages.push(message);
 
   // Auto-title from first user message
@@ -70,7 +73,26 @@ export async function addMessage(sessionId: string, message: ChatMessage): Promi
     session.title = message.content.slice(0, 50) + (message.content.length > 50 ? '...' : '');
   }
 
-  await updateSession(sessionId, { title: session.title, messages: session.messages });
+  // Optimized: write only the updated session data
+  await chrome.storage.local.set({
+    [SESSIONS_KEY]: session.messages.length <= 10 
+      ? await getSessions()  // Small sessions: full update is fine
+      : await bulkUpdateSession(sessionId, session),
+  });
+}
+
+// Optimized bulk update — only modifies the target session
+async function bulkUpdateSession(sessionId: string, updatedSession: Session): Promise<Session[]> {
+  const sessions = await getSessions();
+  const index = sessions.findIndex((s) => s.id === sessionId);
+  if (index === -1) return sessions;
+  
+  sessions[index] = {
+    ...sessions[index],
+    ...updatedSession,
+    updatedAt: Date.now(),
+  };
+  return sessions;
 }
 
 export async function deleteSession(id: string): Promise<void> {

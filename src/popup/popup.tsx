@@ -7,6 +7,11 @@ function Popup() {
     window.close();
   };
 
+  const handleOpenSettings = () => {
+    chrome.runtime.openOptionsPage();
+    window.close();
+  };
+
   return (
     <div style={{
       width: '280px',
@@ -36,11 +41,27 @@ function Popup() {
           fontSize: '13px',
           fontWeight: 500,
           cursor: 'pointer',
+          marginBottom: '8px',
         }}
       >
         Open Side Panel
       </button>
-      <div style={{ marginTop: '8px', fontSize: '11px', color: '#8b949e', textAlign: 'center' }}>
+      <button
+        onClick={handleOpenSettings}
+        style={{
+          width: '100%',
+          padding: '8px 16px',
+          backgroundColor: 'transparent',
+          color: '#8b949e',
+          border: '1px solid #30363d',
+          borderRadius: '6px',
+          fontSize: '13px',
+          cursor: 'pointer',
+        }}
+      >
+        ⚙️ Settings
+      </button>
+      <div style={{ marginTop: '12px', fontSize: '11px', color: '#8b949e', textAlign: 'center' }}>
         Ctrl+Shift+Y / ⌘+Shift+Y
       </div>
     </div>

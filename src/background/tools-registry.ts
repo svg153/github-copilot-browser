@@ -39,7 +39,7 @@ export const tools: ToolDefinition[] = [
 
   // Utility Tools
   { name: 'wait_for_element', description: 'Wait for element to appear', parameters: { selector: { type: 'string', description: 'CSS selector', required: true }, timeout: { type: 'number', description: 'Timeout in ms', required: false, default: 5000 } } },
-  { name: 'execute_javascript', description: 'Run JavaScript in page context', parameters: { code: { type: 'string', description: 'JavaScript code', required: true } }, requiresConfirmation: true },
+  { name: 'execute_javascript', description: 'Run JavaScript in page context (if enabled in settings)', parameters: { code: { type: 'string', description: 'JavaScript code', required: true } }, requiresConfirmation: true },
 ];
 
 // Content script tools (delegated to content script via message passing)
@@ -78,9 +78,12 @@ async function executeBackgroundTool(name: string, params: Record<string, unknow
       const dataUrl = await tabManager.captureScreenshot();
       return { success: true, data: dataUrl };
     }
-    case 'navigate_to':
-      await tabManager.navigateTo(params.url as string);
+    case 'navigate_to': {
+      const url = params.url as string;
+      if (!url) return { success: false, error: 'URL is required' };
+      await tabManager.navigateTo(url);
       return { success: true, data: 'Navigated' };
+    }
     case 'go_back':
       await tabManager.goBack();
       return { success: true, data: 'Went back' };
@@ -88,15 +91,23 @@ async function executeBackgroundTool(name: string, params: Record<string, unknow
       await tabManager.goForward();
       return { success: true, data: 'Went forward' };
     case 'open_tab': {
-      const tab = await tabManager.openTab(params.url as string);
+      const url = params.url as string;
+      if (!url) return { success: false, error: 'URL is required' };
+      const tab = await tabManager.openTab(url);
       return { success: true, data: { tabId: tab.id, url: tab.url } };
     }
-    case 'close_tab':
-      await tabManager.closeTab(params.tabId as number);
+    case 'close_tab': {
+      const tabId = params.tabId as number;
+      if (!tabId) return { success: false, error: 'Tab ID is required' };
+      await tabManager.closeTab(tabId);
       return { success: true, data: 'Tab closed' };
-    case 'switch_tab':
-      await tabManager.switchTab(params.tabId as number);
+    }
+    case 'switch_tab': {
+      const tabId = params.tabId as number;
+      if (!tabId) return { success: false, error: 'Tab ID is required' };
+      await tabManager.switchTab(tabId);
       return { success: true, data: 'Switched tab' };
+    }
     case 'get_open_tabs': {
       const tabs = await tabManager.getOpenTabs();
       return { success: true, data: tabs };
@@ -127,6 +138,14 @@ async function executeContentScriptTool(name: string, params: Record<string, unk
   const message: ContentScriptMessage = { type: messageType, ...(Object.keys(params).length > 0 ? { payload: params } : {}) } as ContentScriptMessage;
 
   const response = await tabManager.sendToContentScript(tab.id, message);
+  
+  // H6: Handle undefined response properly
+  if (response === undefined) {
+    return { success: false, error: 'Content script did not respond (tab may have navigated or is not a web page)' };
+  }
+  if (!response || typeof response !== 'object' || !('success' in response)) {
+    return { success: false, error: `Invalid response from content script: ${JSON.stringify(response).slice(0, 200)}` };
+  }
   return response as ToolResult;
 }
 

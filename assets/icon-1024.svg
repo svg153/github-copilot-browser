@@ -1,0 +1,42 @@
+<!-- GitHub Copilot Browser - Extension Icon 1024x1024 -->
+<!-- For Chrome Web Store submission -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1f6feb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d419d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c8e6ff;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle with rounded square feel -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bgGrad)"/>
+  
+  <!-- Star/Copilot symbol -->
+  <g filter="url(#shadow)">
+    <path d="M512 128
+             L580 328
+             L812 372
+             L630 524
+             L678 748
+             L512 636
+             L346 748
+             L394 524
+             L212 372
+             L444 328
+             Z"
+          fill="url(#iconGrad)"
+          stroke="#ffffff"
+          stroke-width="8"
+          stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Small accent dot -->
+  <circle cx="512" cy="470" r="16" fill="#79c0ff"/>
+</svg>

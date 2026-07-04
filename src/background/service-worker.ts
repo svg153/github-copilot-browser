@@ -1,8 +1,8 @@
 import { nativeMessaging } from './native-messaging';
 import { executeTool } from './tools-registry';
 import * as tabManager from './tab-manager';
-import type { PanelMessage, BackgroundMessage } from '../shared/messages';
-import type { ConnectionStatus } from '../shared/types';
+import type { PanelMessage, BackgroundMessage, ContentScriptResponse } from '../shared/messages';
+import type { ConnectionStatus, ChatMessage, ToolResult, ToolCall } from '../shared/types';
 
 console.log('[Background] Service worker loaded');
 
@@ -62,7 +62,7 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
       try {
         nativeMessaging.send({
           type: 'SEND_CHAT_MESSAGE',
-          payload: { content },
+          payload: { content, sessionId },
         });
       } catch (error) {
         sendToPanel(port, {
@@ -76,15 +76,51 @@ async function handlePanelMessage(message: PanelMessage, port: chrome.runtime.Po
       break;
     }
 
-    case 'EXECUTE_TOOL':
+    case 'EXECUTE_TOOL': {
+      const { toolCall } = message.payload;
+      const sessionId = toolCall.id.includes('tool-') ? 'current' : 'current';
+      try {
+        const result = await executeTool(toolCall.name, toolCall.parameters || {});
+        sendToPanel(port, {
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId: toolCall.id, result, sessionId },
+        });
+      } catch (error) {
+        const errorResult: ToolResult = { success: false, error: error instanceof Error ? error.message : String(error) };
+        sendToPanel(port, {
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId: toolCall.id, result: errorResult, sessionId },
+        });
+      }
       break;
+    }
+
+    case 'GET_SETTINGS': {
+      try {
+        const result = await chrome.storage.local.get('copilot_settings');
+        const settings = result.copilot_settings || {};
+        sendToPanel(port, { type: 'SETTINGS_LOADED', payload: settings });
+      } catch (error) {
+        sendToPanel(port, { type: 'SETTINGS_LOADED', payload: {} });
+      }
+      break;
+    }
+
+    case 'SAVE_SETTINGS': {
+      try {
+        await chrome.storage.local.set({ copilot_settings: message.payload });
+        sendToPanel(port, { type: 'CONNECTION_STATUS_CHANGED', payload: { status: 'connected' } });
+      } catch (error) {
+        console.error('[Background] Failed to save settings:', error);
+      }
+      break;
+    }
   }
 }
 
 // Forward native messaging responses from host to panels
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 nativeMessaging.onMessage((message: any) => {
-  const sessionId = 'current';
+  const sessionId = message.payload?.sessionId || message.payload?.content ? 'current' : 'current';
 
   switch (message.type) {
     // Full assistant response
@@ -122,18 +158,18 @@ nativeMessaging.onMessage((message: any) => {
     // Host requests a browser tool execution (LLM called a tool)
     case 'TOOL_CALL_REQUEST': {
       const { toolCallId, toolName, arguments: args } = message.payload;
+      const currentSessionId = message.payload?.sessionId || 'current';
 
       sendToPanels({
         type: 'TOOL_CALL_START',
         payload: {
           toolCall: { id: toolCallId, name: toolName, parameters: args || {}, status: 'running' },
-          sessionId,
+          sessionId: currentSessionId,
         },
       });
 
       // Execute the tool in the extension
       executeTool(toolName, args || {}).then((result) => {
-        // Send result back to the native host so the SDK can feed it to the LLM
         nativeMessaging.send({
           type: 'TOOL_CALL_RESULT',
           payload: { toolCallId, result },
@@ -141,7 +177,17 @@ nativeMessaging.onMessage((message: any) => {
 
         sendToPanels({
           type: 'TOOL_CALL_RESULT',
-          payload: { toolCallId, result, sessionId },
+          payload: { toolCallId, result, sessionId: currentSessionId },
+        });
+      }).catch((error: Error) => {
+        const errorResult: ToolResult = { success: false, error: error.message };
+        nativeMessaging.send({
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId, result: errorResult },
+        });
+        sendToPanels({
+          type: 'TOOL_CALL_RESULT',
+          payload: { toolCallId, result: errorResult, sessionId: currentSessionId },
         });
       });
       break;

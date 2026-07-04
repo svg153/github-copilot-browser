@@ -27,6 +27,7 @@ export default function HeaderBar({ connectionStatus, connectionError, onConnect
   const tooltip = connectionError
     ? `${statusLabels[connectionStatus]}: ${connectionError}`
     : statusLabels[connectionStatus];
+
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--copilot-border)' }}>
       <div className="flex items-center gap-2">
@@ -44,6 +45,14 @@ export default function HeaderBar({ connectionStatus, connectionError, onConnect
         >
           <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: statusColors[connectionStatus] }} />
           {statusLabels[connectionStatus]}
+        </button>
+        <button
+          onClick={() => chrome.runtime.openOptionsPage()}
+          className="text-xs px-2 py-1 rounded hover:opacity-80"
+          style={{ color: 'var(--copilot-text-secondary)' }}
+          title="Settings"
+        >
+          ⚙️
         </button>
         <button
           onClick={onShowHistory}

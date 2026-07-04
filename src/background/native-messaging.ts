@@ -1,9 +1,14 @@
 import { NATIVE_HOST_NAME } from '../shared/constants';
 import type { NativeMessage } from '../shared/messages';
-import type { ConnectionStatus } from '../shared/types';
+import type { ConnectionStatus, ExtensionSettings } from '../shared/types';
 
 type StatusListener = (status: ConnectionStatus) => void;
 type MessageListener = (message: NativeMessage) => void;
+
+// Default reconnect config (can be overridden by settings)
+const DEFAULT_BACKOFF_BASE_MS = 5000;
+const DEFAULT_BACKOFF_MAX_MS = 60000;
+const DEFAULT_MAX_ATTEMPTS = 20;
 
 class NativeMessagingClient {
   private port: chrome.runtime.Port | null = null;
@@ -12,6 +17,12 @@ class NativeMessagingClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _status: ConnectionStatus = 'disconnected';
   private _lastError: string | null = null;
+  
+  // Configurable backoff settings
+  private backoffBaseMs: number = DEFAULT_BACKOFF_BASE_MS;
+  private backoffMaxMs: number = DEFAULT_BACKOFF_MAX_MS;
+  private maxAttempts: number = DEFAULT_MAX_ATTEMPTS;
+  private reconnectAttempts: number = 0;
 
   get status(): ConnectionStatus {
     return this._status;
@@ -31,6 +42,10 @@ class NativeMessagingClient {
 
       this.port.onMessage.addListener((message: NativeMessage) => {
         if (message.type === 'HOST_STATUS') {
+          if (message.payload.connected) {
+            // Reset backoff on successful connection
+            this.reconnectAttempts = 0;
+          }
           this.setStatus(message.payload.connected ? 'connected' : 'error');
         }
         this.messageListeners.forEach((listener) => listener(message));
@@ -42,6 +57,7 @@ class NativeMessagingClient {
         this.port = null;
         this._lastError = error || null;
         this.setStatus('error');
+        this.scheduleReconnect();
       });
     } catch (error) {
       console.error('[NativeMessaging] Connection failed:', error);
@@ -59,6 +75,7 @@ class NativeMessagingClient {
       this.port.disconnect();
       this.port = null;
     }
+    this.reconnectAttempts = 0;
     this.setStatus('disconnected');
   }
 
@@ -67,6 +84,13 @@ class NativeMessagingClient {
       throw new Error('Not connected to native host');
     }
     this.port.postMessage(message);
+  }
+
+  // H3: Configurable reconnect with exponential backoff
+  configureReconnect(options: { baseMs?: number; maxMs?: number; maxAttempts?: number }): void {
+    if (options.baseMs !== undefined) this.backoffBaseMs = options.baseMs;
+    if (options.maxMs !== undefined) this.backoffMaxMs = options.maxMs;
+    if (options.maxAttempts !== undefined) this.maxAttempts = options.maxAttempts;
   }
 
   onStatus(listener: StatusListener): () => void {
@@ -90,10 +114,25 @@ class NativeMessagingClient {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    if (this.reconnectAttempts >= this.maxAttempts) {
+      console.warn('[NativeMessaging] Max reconnect attempts reached:', this.maxAttempts);
+      this.reconnectAttempts = 0;
+      return;
+    }
+
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
+      const delay = Math.min(
+        this.backoffBaseMs * Math.pow(2, this.reconnectAttempts),
+        this.backoffMaxMs
+      );
+      console.log(`[NativeMessaging] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.maxAttempts})`);
+      this.reconnectAttempts++;
       this.connect();
-    }, 5000);
+    }, Math.min(
+      this.backoffBaseMs * Math.pow(2, this.reconnectAttempts),
+      this.backoffMaxMs
+    ));
   }
 }
 

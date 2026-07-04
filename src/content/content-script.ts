@@ -105,14 +105,9 @@ async function handleMessage(message: { type: string; payload?: Record<string, u
     }
 
     case 'EXECUTE_JAVASCRIPT': {
-      const result = interactor.executeJavaScript(payload.code as string);
+      const allowed = payload.allowed === true;
+      const result = interactor.executeJavaScript(payload.code as string, allowed);
       return { success: result.success, data: result.result, error: result.error };
-    }
-
-    case 'CAPTURE_ELEMENT': {
-      const { captureElement } = await import('./screenshot');
-      const result = await captureElement(payload.selector as string);
-      return result;
     }
 
     default:
