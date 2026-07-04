@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copilot Browser - Chat Screenshot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1280px;
+      height: 800px;
+      background: #0d1117;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      color: #e6edf3;
+      overflow: hidden;
+    }
+    .browser-chrome {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .top-bar {
+      height: 40px;
+      background: #21262d;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      border-bottom: 1px solid #30363d;
+      flex-shrink: 0;
+    }
+    .dots { display: flex; gap: 6px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot.red { background: #ff5f56; }
+    .dot.yellow { background: #ffbd2e; }
+    .dot.green { background: #27c93f; }
+    .url-bar {
+      flex: 1;
+      height: 28px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #8b949e;
+      margin-left: 8px;
+      gap: 6px;
+    }
+    .url-bar .lock { color: #3fb950; }
+    .url-bar .domain { color: #e6edf3; }
+    .ext-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, #1f6feb, #0d419d);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .ext-icon svg { width: 16px; height: 16px; }
+    .main-area {
+      flex: 1;
+      display: flex;
+    }
+    .page-content {
+      flex: 1;
+      padding: 40px 60px;
+      background: #161b22;
+    }
+    .page-content h1 { font-size: 28px; margin-bottom: 12px; color: #e6edf3; }
+    .page-content p { font-size: 14px; color: #8b949e; line-height: 1.6; margin-bottom: 10px; }
+    .page-content .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 28px;
+    }
+    .page-content .feature-card {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .page-content .feature-card h3 { font-size: 14px; color: #58a6ff; margin-bottom: 6px; }
+    .page-content .feature-card p { font-size: 12px; margin-bottom: 0; color: #8b949e; }
+    .side-panel {
+      width: 420px;
+      background: #0d1117;
+      border-left: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-header .logo {
+      width: 20px; height: 20px;
+      background: #1f6feb;
+      clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    }
+    .panel-header .title { font-weight: 600; font-size: 14px; }
+    .panel-header .status {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: #3fb950;
+    }
+    .panel-header .status-dot {
+      width: 6px; height: 6px;
+      background: #3fb950;
+      border-radius: 50%;
+    }
+    .panel-header .actions { display: flex; gap: 6px; margin-left: 8px; }
+    .panel-header .action-btn {
+      width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .chat-area {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+    .msg {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+      max-width: 92%;
+    }
+    .msg.user {
+      background: #1f6feb;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.ai {
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #e6edf3;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .msg.ai .tool-badge {
+      display: inline-block;
+      background: #1f2937;
+      color: #7ee787;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+    .msg.ai ol { margin: 8px 0 0 18px; font-size: 12px; color: #c9d1d9; }
+    .msg.ai code { background: #1f2937; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #79c0ff; }
+    .input-bar {
+      padding: 12px 16px;
+      border-top: 1px solid #30363d;
+      display: flex;
+      gap: 8px;
+    }
+    .input-bar input {
+      flex: 1;
+      height: 36px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 0 14px;
+      color: #e6edf3;
+      font-size: 13px;
+      outline: none;
+    }
+    .input-bar button {
+      height: 36px;
+      padding: 0 18px;
+      background: #1f6feb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .caption {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(13,17,23,0.85);
+      color: #8b949e;
+      font-size: 12px;
+      padding: 6px 16px;
+      border-radius: 4px;
+      border: 1px solid #30363d;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="browser-chrome">
+    <div class="top-bar">
+      <div class="dots">
+        <div class="dot red"></div>
+        <div class="dot yellow"></div>
+        <div class="dot green"></div>
+      </div>
+      <div class="url-bar">
+        <span class="lock">🔒</span>
+        <span class="domain">example.com</span>
+      </div>
+      <div class="ext-icon">
+        <svg viewBox="0 0 24 24" fill="white"><path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/></svg>
+      </div>
+    </div>
+    <div class="main-area">
+      <div class="page-content">
+        <h1>Welcome to Example</h1>
+        <p>This is a sample webpage that the AI assistant can interact with.</p>
+        <div class="features">
+          <div class="feature-card">
+            <h3>📊 Dashboard</h3>
+            <p>Real-time analytics and metrics for your projects and workflows.</p>
+          </div>
+          <div class="feature-card">
+            <h3>📝 Forms</h3>
+            <p>Multi-step forms with validation and auto-fill capabilities.</p>
+          </div>
+          <div class="feature-card">
+            <h3>🔗 Links</h3>
+            <p>Network of resources and documentation for developers.</p>
+          </div>
+          <div class="feature-card">
+            <h3>🖼️ Media</h3>
+            <p>Rich media content with images, video, and interactive elements.</p>
+          </div>
+        </div>
+      </div>
+      <div class="side-panel">
+        <div class="panel-header">
+          <div class="logo"></div>
+          <span class="title">Copilot Browser</span>
+          <div class="status">
+            <div class="status-dot"></div>
+            Connected
+          </div>
+          <div class="actions">
+            <div class="action-btn" title="Settings">⚙️</div>
+            <div class="action-btn" title="History">📋</div>
+            <div class="action-btn" title="New Session">+</div>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div class="msg user">Extract the main headings from this page</div>
+          <div class="msg ai">
+            I'll extract the headings from the current page for you.
+            <div class="tool-badge">🔍 query_selector × 5</div>
+            <br><br>
+            Found <strong>4 headings</strong>:
+            <ol>
+              <li><code>H1</code> — Welcome to Example</li>
+              <li><code>H3</code> — Dashboard</li>
+              <li><code>H3</code> — Forms</li>
+              <li><code>H3</code> — Links</li>
+            </ol>
+          </div>
+          <div class="msg user">Fill out the contact form with my details</div>
+          <div class="msg ai">
+            I found a contact form with 3 fields. Here's what I'll fill:
+            <ol>
+              <li><strong>Name:</strong> John Doe</li>
+              <li><strong>Email:</strong> john@example.com</li>
+              <li><strong>Message:</strong> Hello, I'd like to...</li>
+            </ol>
+            <br>
+            <div class="tool-badge">📝 fill_form ✓</div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <input type="text" placeholder="Ask Copilot to interact with this page..." />
+          <button>Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">Screenshot 1: Side Panel Chat with Browser Integration</div>
+</body>
+</html>
